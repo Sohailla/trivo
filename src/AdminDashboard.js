@@ -1,21 +1,57 @@
 import { useEffect, useState } from "react";
 import { db, auth } from "./firebase";
-import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import "./AdminDashboard.css";
 
 export default function AdminDashboard() {
+  const [users, setUsers] = useState([]);
+  const [lines, setLines] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [drivers, setDrivers] = useState([]);
-  const [riders, setRiders] = useState([]);
-  const [stats, setStats] = useState({
-    totalBookings: 0,
-    pendingBookings: 0,
-    activeDrivers: 0,
-    totalRiders: 0,
-  });
+  const [activeTab, setActiveTab] = useState("users");
+  const [userFilter, setUserFilter] = useState("all");
+  const [showProfile, setShowProfile] = useState(false);
+  const [adminInfo, setAdminInfo] = useState(null);
+  
+  // Line form
+  const [showLineForm, setShowLineForm] = useState(false);
+  const [lineName, setLineName] = useState("");
+  const [pickPoints, setPickPoints] = useState([""]);
+  const [destinations, setDestinations] = useState([""]);
+  const [assignedDriver, setAssignedDriver] = useState("");
+  const [tripTime, setTripTime] = useState("08:00");
 
   useEffect(() => {
+    const loadAdmin = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        const docRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setAdminInfo(docSnap.data());
+        }
+      }
+    };
+    loadAdmin();
+
+    // Listen to users
+    const usersUnsub = onSnapshot(collection(db, "users"), (snapshot) => {
+      const usersList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setUsers(usersList);
+    });
+
+    // Listen to lines
+    const linesUnsub = onSnapshot(collection(db, "lines"), (snapshot) => {
+      const linesList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setLines(linesList);
+    });
+
     // Listen to bookings
     const bookingsUnsub = onSnapshot(collection(db, "bookings"), (snapshot) => {
       const bookingsList = snapshot.docs.map(doc => ({
@@ -23,59 +59,146 @@ export default function AdminDashboard() {
         ...doc.data()
       }));
       setBookings(bookingsList);
-      
-      // Calculate stats
-      setStats(prev => ({
-        ...prev,
-        totalBookings: bookingsList.length,
-        pendingBookings: bookingsList.filter(b => b.status === "pending").length,
-      }));
-    });
-
-    // Listen to users for drivers/riders count
-    const usersUnsub = onSnapshot(collection(db, "users"), (snapshot) => {
-      const users = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      const driversList = users.filter(u => u.role === "driver");
-      const ridersList = users.filter(u => u.role === "rider");
-      
-      setDrivers(driversList);
-      setRiders(ridersList);
-      
-      setStats(prev => ({
-        ...prev,
-        activeDrivers: driversList.length,
-        totalRiders: ridersList.length,
-      }));
     });
 
     return () => {
-      bookingsUnsub();
       usersUnsub();
+      linesUnsub();
+      bookingsUnsub();
     };
   }, []);
 
-  const updateBookingStatus = async (bookingId, newStatus) => {
+  const drivers = users.filter(u => u.role === "driver");
+  const riders = users.filter(u => u.role === "rider");
+  const admins = users.filter(u => u.role === "admin");
+  const pendingAdmins = users.filter(u => u.role === "admin" && u.status === "pending_admin");
+
+  const approveAdmin = async (userId) => {
+    if (window.confirm("Approve this admin?")) {
+      await updateDoc(doc(db, "users", userId), { status: "active" });
+      alert("Admin approved!");
+    }
+  };
+
+  const [editingLine, setEditingLine] = useState(null);
+
+  const startEditLine = (line) => {
+    setEditingLine(line);
+    setLineName(line.name);
+    setPickPoints(line.pickPoints);
+    setDestinations(line.destinations);
+    setAssignedDriver(line.driverId);
+    setTripTime(line.tripTime);
+    setShowLineForm(true);
+  };
+
+  const updateLine = async () => {
+    if (!lineName || !assignedDriver) {
+      alert("Fill all fields");
+      return;
+    }
+
+    const validPickPoints = pickPoints.filter(p => p.trim());
+    const validDestinations = destinations.filter(d => d.trim());
+
     try {
-      await updateDoc(doc(db, "bookings", bookingId), {
-        status: newStatus,
-        updatedAt: new Date().toISOString(),
+      await updateDoc(doc(db, "lines", editingLine.id), {
+        name: lineName,
+        pickPoints: validPickPoints,
+        destinations: validDestinations,
+        driverId: assignedDriver,
+        tripTime,
       });
+
+      await updateDoc(doc(db, "users", assignedDriver), {
+        assignedLine: lineName,
+      });
+
+      alert("Line updated!");
+      setShowLineForm(false);
+      setEditingLine(null);
+      resetLineForm();
     } catch (error) {
-      alert("Error updating booking: " + error.message);
+      alert("Error: " + error.message);
     }
   };
 
   const deleteBooking = async (bookingId) => {
-    if (window.confirm("Are you sure you want to delete this booking?")) {
-      try {
-        await deleteDoc(doc(db, "bookings", bookingId));
-      } catch (error) {
-        alert("Error deleting booking: " + error.message);
-      }
+    if (window.confirm("Delete this booking?")) {
+      await deleteDoc(doc(db, "bookings", bookingId));
+    }
+  };
+
+  const addPickPoint = () => setPickPoints([...pickPoints, ""]);
+  const addDestination = () => setDestinations([...destinations, ""]);
+  
+  const updatePickPoint = (index, value) => {
+    const updated = [...pickPoints];
+    updated[index] = value;
+    setPickPoints(updated);
+  };
+
+  const updateDestination = (index, value) => {
+    const updated = [...destinations];
+    updated[index] = value;
+    setDestinations(updated);
+  };
+
+  const createLine = async () => {
+    if (!lineName || !assignedDriver) {
+      alert("Please fill line name and assign a driver");
+      return;
+    }
+
+    const validPickPoints = pickPoints.filter(p => p.trim());
+    const validDestinations = destinations.filter(d => d.trim());
+
+    if (validPickPoints.length === 0 || validDestinations.length === 0) {
+      alert("Add at least one pick-point and destination");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "lines"), {
+        name: lineName,
+        pickPoints: validPickPoints,
+        destinations: validDestinations,
+        driverId: assignedDriver,
+        tripTime,
+        createdAt: new Date().toISOString(),
+        isActive: true,
+      });
+
+      // Update driver with assigned line
+      await updateDoc(doc(db, "users", assignedDriver), {
+        assignedLine: lineName,
+      });
+
+      alert("Line created successfully!");
+      setShowLineForm(false);
+      resetLineForm();
+    } catch (error) {
+      alert("Error: " + error.message);
+    }
+  };
+
+  const resetLineForm = () => {
+    setLineName("");
+    setPickPoints([""]);
+    setDestinations([""]);
+    setAssignedDriver("");
+    setTripTime("08:00");
+  };
+
+  const deleteLine = async (lineId) => {
+    if (window.confirm("Delete this line?")) {
+      await deleteDoc(doc(db, "lines", lineId));
+    }
+  };
+
+  const deleteUser = async (userId) => {
+    if (window.confirm("Delete this user?")) {
+      await deleteDoc(doc(db, "users", userId));
     }
   };
 
@@ -88,91 +211,238 @@ export default function AdminDashboard() {
     <div className="admin-container">
       <div className="admin-header">
         <h1>Admin Dashboard 👨‍💼</h1>
-        <button className="btn-logout" onClick={handleLogout}>
-          Logout
-        </button>
+        <div style={{display: 'flex', gap: '10px'}}>
+          <button className="btn-primary" onClick={() => setShowProfile(!showProfile)}>👤</button>
+          <button className="btn-logout" onClick={handleLogout}>Logout</button>
+        </div>
       </div>
 
+      {showProfile && (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{background: 'white', padding: '30px', borderRadius: '10px', maxWidth: '500px', width: '90%'}}>
+            <h2>👨‍💼 Admin Profile</h2>
+            <p><strong>Name:</strong> {adminInfo?.name}</p>
+            <p><strong>Email:</strong> {auth.currentUser?.email}</p>
+            <p><strong>Phone:</strong> {adminInfo?.phone}</p>
+            <p><strong>Role:</strong> Admin</p>
+            <button className="btn-primary" onClick={() => setShowProfile(false)} style={{marginTop: '20px'}}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {pendingAdmins.length > 0 && (
+        <div style={{background: '#fff3cd', padding: '15px', margin: '20px', borderRadius: '8px', border: '1px solid #ffc107'}}>
+          <h3>⚠️ Pending Admin Requests ({pendingAdmins.length})</h3>
+          {pendingAdmins.map(admin => (
+            <div key={admin.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: 'white', margin: '10px 0', borderRadius: '5px'}}>
+              <div>
+                <strong>{admin.name}</strong> - {admin.email}
+              </div>
+              <button className="btn-primary" onClick={() => approveAdmin(admin.id)}>Approve</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">📊</div>
-          <div className="stat-info">
-            <h3>{stats.totalBookings}</h3>
-            <p>Total Bookings</p>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">⏳</div>
-          <div className="stat-info">
-            <h3>{stats.pendingBookings}</h3>
-            <p>Pending</p>
-          </div>
-        </div>
-
-        <div className="stat-card">
+        <div className="stat-card" onClick={() => { setActiveTab("users"); setUserFilter("driver"); }}>
           <div className="stat-icon">🚗</div>
           <div className="stat-info">
-            <h3>{stats.activeDrivers}</h3>
+            <h3>{drivers.length}</h3>
             <p>Drivers</p>
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card" onClick={() => { setActiveTab("users"); setUserFilter("rider"); }}>
           <div className="stat-icon">🧍</div>
           <div className="stat-info">
-            <h3>{stats.totalRiders}</h3>
+            <h3>{riders.length}</h3>
             <p>Riders</p>
+          </div>
+        </div>
+
+        <div className="stat-card" onClick={() => { setActiveTab("users"); setUserFilter("admin"); }}>
+          <div className="stat-icon">👨‍💼</div>
+          <div className="stat-info">
+            <h3>{admins.length}</h3>
+            <p>Admins</p>
+          </div>
+        </div>
+
+        <div className="stat-card" onClick={() => setActiveTab("lines")}>
+          <div className="stat-icon">🛣️</div>
+          <div className="stat-info">
+            <h3>{lines.length}</h3>
+            <p>Lines</p>
+          </div>
+        </div>
+
+        <div className="stat-card" onClick={() => setActiveTab("bookings")}>
+          <div className="stat-icon">📊</div>
+          <div className="stat-info">
+            <h3>{bookings.length}</h3>
+            <p>Bookings</p>
           </div>
         </div>
       </div>
 
-      <div className="bookings-section">
-        <h2>All Bookings</h2>
-        
-        {bookings.length === 0 ? (
-          <div className="empty-state">
-            <p>No bookings yet</p>
+      {pendingAdmins.length > 0 && (
+        <div className="section" style={{background: '#fff3cd', padding: '15px', borderRadius: '8px', marginBottom: '20px'}}>
+          <h3>⚠️ Pending Admin Approvals ({pendingAdmins.length})</h3>
+          {pendingAdmins.map(admin => (
+            <div key={admin.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: 'white', borderRadius: '5px', marginTop: '10px'}}>
+              <div>
+                <strong>{admin.name}</strong> - {admin.email}
+              </div>
+              <button className="btn-primary" onClick={() => approveAdmin(admin.id)}>✅ Approve</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="tabs">
+        <button className={activeTab === "users" ? "tab active" : "tab"} onClick={() => setActiveTab("users")}>Users</button>
+        <button className={activeTab === "lines" ? "tab active" : "tab"} onClick={() => setActiveTab("lines")}>Lines</button>
+        <button className={activeTab === "bookings" ? "tab active" : "tab"} onClick={() => setActiveTab("bookings")}>Bookings</button>
+      </div>
+
+      {activeTab === "users" && (
+        <div className="section">
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <h2>
+              {userFilter === "all" ? "All Users" : userFilter === "driver" ? "Drivers" : userFilter === "rider" ? "Riders" : "Admins"}
+            </h2>
+            <button className="btn-small" onClick={() => setUserFilter("all")}>Show All</button>
           </div>
-        ) : (
-          <div className="bookings-list">
-            {bookings.map((booking) => (
-              <div key={booking.id} className="booking-item">
-                <div className="booking-info">
-                  <h3>{booking.riderName}</h3>
-                  <p>📞 {booking.riderPhone}</p>
-                  <p><strong>From:</strong> {booking.pickup}</p>
-                  <p><strong>To:</strong> {booking.destination}</p>
-                  <p className="booking-time">
-                    {new Date(booking.createdAt).toLocaleString()}
-                  </p>
+          <div className="users-list">
+            {users
+              .filter(u => userFilter === "all" || u.role === userFilter)
+              .map(user => (
+              <div key={user.id} className="user-item">
+                <div>
+                  <h3>{user.name}</h3>
+                  <p>📧 {user.email}</p>
+                  <p>📞 {user.phone}</p>
+                  <p><strong>Role:</strong> {user.role}</p>
+                  {user.assignedLine && <p><strong>Line:</strong> {user.assignedLine}</p>}
                 </div>
+                <button className="btn-delete" onClick={() => deleteUser(user.id)}>🗑️</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-                <div className="booking-actions">
-                  <select
-                    value={booking.status}
-                    onChange={(e) => updateBookingStatus(booking.id, e.target.value)}
-                    className={`status-select status-${booking.status}`}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="accepted">Accepted</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
+      {activeTab === "lines" && (
+        <div className="section">
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <h2>Lines</h2>
+            <button className="btn-primary" onClick={() => {
+              setShowLineForm(!showLineForm);
+              setEditingLine(null);
+              resetLineForm();
+            }}>
+              {showLineForm ? "Cancel" : "+ Create Line"}
+            </button>
+          </div>
 
-                  <button
-                    className="btn-delete"
-                    onClick={() => deleteBooking(booking.id)}
-                  >
-                    🗑️
-                  </button>
+          {showLineForm && (
+            <div className="line-form">
+              <h3>{editingLine ? "Edit Line" : "Create New Line"}</h3>
+              
+              <input
+                placeholder="Line Name (e.g., Line A)"
+                value={lineName}
+                onChange={(e) => setLineName(e.target.value)}
+                className="input-field"
+              />
+
+              <label><strong>Pick Points:</strong></label>
+              {pickPoints.map((point, i) => (
+                <input
+                  key={i}
+                  placeholder={`Pick Point ${i + 1}`}
+                  value={point}
+                  onChange={(e) => updatePickPoint(i, e.target.value)}
+                  className="input-field"
+                />
+              ))}
+              <button className="btn-small" onClick={addPickPoint}>+ Add Pick Point</button>
+
+              <label><strong>Destinations:</strong></label>
+              {destinations.map((dest, i) => (
+                <input
+                  key={i}
+                  placeholder={`Destination ${i + 1}`}
+                  value={dest}
+                  onChange={(e) => updateDestination(i, e.target.value)}
+                  className="input-field"
+                />
+              ))}
+              <button className="btn-small" onClick={addDestination}>+ Add Destination</button>
+
+              <label><strong>Assign Driver:</strong></label>
+              <select value={assignedDriver} onChange={(e) => setAssignedDriver(e.target.value)} className="input-field">
+                <option value="">Select Driver</option>
+                {drivers.map(driver => (
+                  <option key={driver.id} value={driver.id}>{driver.name}</option>
+                ))}
+              </select>
+
+              <label><strong>Trip Time:</strong></label>
+              <input
+                type="time"
+                value={tripTime}
+                onChange={(e) => setTripTime(e.target.value)}
+                className="input-field"
+              />
+
+              <button className="btn-submit" onClick={editingLine ? updateLine : createLine}>
+                {editingLine ? "Update Line" : "Create Line"}
+              </button>
+            </div>
+          )}
+
+          <div className="lines-list">
+            {lines.map(line => (
+              <div key={line.id} className="line-item">
+                <div>
+                  <h3>{line.name}</h3>
+                  <p><strong>Pick Points:</strong> {line.pickPoints.join(", ")}</p>
+                  <p><strong>Destinations:</strong> {line.destinations.join(", ")}</p>
+                  <p><strong>Driver:</strong> {users.find(u => u.id === line.driverId)?.name || "Unassigned"}</p>
+                  <p><strong>Time:</strong> {line.tripTime}</p>
+                </div>
+                <div style={{display: 'flex', gap: '10px'}}>
+                  <button className="btn-primary" onClick={() => startEditLine(line)}>✏️</button>
+                  <button className="btn-delete" onClick={() => deleteLine(line.id)}>🗑️</button>
                 </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {activeTab === "bookings" && (
+        <div className="section">
+          <h2>All Bookings</h2>
+          <div className="bookings-list">
+            {bookings.map(booking => (
+              <div key={booking.id} className="booking-item">
+                <div>
+                  <h3>{booking.riderName}</h3>
+                  <p>📞 {booking.riderPhone}</p>
+                  <p><strong>Line:</strong> {booking.lineName}</p>
+                  <p><strong>Pick:</strong> {booking.pickup}</p>
+                  <p><strong>Dest:</strong> {booking.destination}</p>
+                  <p><strong>Date:</strong> {booking.tripDate}</p>
+                </div>
+                <button className="btn-delete" onClick={() => deleteBooking(booking.id)}>🗑️</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

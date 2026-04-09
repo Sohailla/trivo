@@ -1,9 +1,9 @@
 {
-  "name": "Trip Tracker",
-  "short_name": "TripTracker",
+  "name": "Trivo",
+  "short_name": "Trivo",
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
+  "theme_color": "#4CAF50",
   "background_color": "#ffffff",
   "icons": [
     {

@@ -3,7 +3,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } f
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 import DriverDashboard from "./DriverDashboard";
 import RiderDashboard from "./RiderDashboard";
-import Profile from "./Profile";
+import AdminDashboard from "./AdminDashboard";
 import "./Login.css";
 
 export default function Login() {
@@ -13,7 +13,6 @@ export default function Login() {
   const [isSignup, setIsSignup] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showProfile, setShowProfile] = useState(false);
   
   // Signup fields
   const [name, setName] = useState("");
@@ -36,12 +35,16 @@ export default function Login() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Get user role from Firestore
       const docRef = doc(db, "users", user.uid);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
         const data = docSnap.data();
+        if (data.status === "pending_admin") {
+          setError("Admin account pending approval. Contact existing admin.");
+          await auth.signOut();
+          return;
+        }
         setRole(data.role);
       } else {
         setError("No profile found! Please contact support.");
@@ -69,16 +72,31 @@ export default function Login() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Create user profile in Firestore
       await setDoc(doc(db, "users", user.uid), {
         name,
         phone,
         role: selectedRole,
         email,
         createdAt: new Date().toISOString(),
+        status: selectedRole === "admin" ? "pending_admin" : "active",
       });
 
-      setRole(selectedRole);
+      // Notify admin (in real app, use Cloud Functions)
+      await setDoc(doc(db, "notifications", user.uid), {
+        type: "new_user",
+        userName: name,
+        userRole: selectedRole,
+        userEmail: email,
+        createdAt: new Date().toISOString(),
+        read: false,
+      });
+
+      alert(
+        selectedRole === "admin"
+          ? "Admin registration submitted! Wait for approval from existing admin."
+          : "Registration successful!"
+      );
+      setIsSignup(false);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -86,10 +104,7 @@ export default function Login() {
     }
   };
 
-  if (showProfile) {
-    return <Profile onBack={() => setShowProfile(false)} />;
-  }
-
+  if (role === "admin") return <AdminDashboard />;
   if (role === "driver") return <DriverDashboard />;
   if (role === "rider") return <RiderDashboard />;
 
@@ -97,7 +112,7 @@ export default function Login() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>🚗 Trip Tracker</h1>
+          <h1>🚗 Trivo</h1>
           <p>Your ride, your way</p>
         </div>
 
@@ -156,6 +171,7 @@ export default function Login() {
                 >
                   <option value="rider">🧍 Rider</option>
                   <option value="driver">🚗 Driver</option>
+                  <option value="admin">👨‍💼 Admin</option>
                 </select>
               </div>
             </>
