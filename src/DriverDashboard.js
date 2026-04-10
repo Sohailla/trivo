@@ -148,9 +148,7 @@ export default function DriverDashboard() {
 
   const handleNotificationClick = async (notif) => {
     if (notif.type === "new_booking") {
-      setActiveView("trips");
-      
-      // Refresh trips to get updated riders
+      // Refresh trips first
       const q = query(collection(db, "lines"), where("driverId", "==", auth.currentUser.uid));
       const snapshot = await getDocs(q);
       const trips = [];
@@ -170,11 +168,15 @@ export default function DriverDashboard() {
         const riders = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         trips.push({ ...lineData, riders, tripDate: tomorrowStr });
       }
-      setMyTrips(trips);
       
-      // Open trip
-      const trip = trips.find(t => t.id === notif.tripId);
-      if (trip) setSelectedTrip(trip);
+      setMyTrips(trips);
+      setActiveView("trips");
+      
+      // Find and set trip after updating state
+      setTimeout(() => {
+        const trip = trips.find(t => t.id === notif.tripId);
+        if (trip) setSelectedTrip(trip);
+      }, 100);
     }
     await updateDoc(doc(db, "notifications", notif.id), { read: true });
   };
@@ -294,7 +296,17 @@ export default function DriverDashboard() {
                     <p>Sharing Location</p>
                   </div>
                   {currentLocation && (
-                    <p className="coords">📍 {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}</p>
+                    <>
+                      <p className="coords">📍 {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}</p>
+                      <div style={{marginTop: '15px', height: '300px', borderRadius: '8px', overflow: 'hidden'}}>
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${currentLocation.lng-0.01},${currentLocation.lat-0.01},${currentLocation.lng+0.01},${currentLocation.lat+0.01}&layer=mapnik&marker=${currentLocation.lat},${currentLocation.lng}`}
+                        />
+                      </div>
+                    </>
                   )}
                 </>
               )}
