@@ -27,8 +27,8 @@ export default function RiderDashboard() {
   const [activeDriver, setActiveDriver] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [bookingCounts, setBookingCounts] = useState({});
-  // eslint-disable-next-line
   const [showLiveMap, setShowLiveMap] = useState(false);
+  const [fullScreenMap, setFullScreenMap] = useState(false);
 
   useEffect(() => {
     const fetchRiderInfo = async () => {
@@ -194,10 +194,8 @@ export default function RiderDashboard() {
 
   const handleNotificationClick = async (notif) => {
     if (notif.type === "trip_started") {
-      setShowLiveMap(true);
-      setActiveView("home");
+      setFullScreenMap(true);
     }
-    // Mark as read
     await updateDoc(doc(db, "notifications", notif.id), { read: true });
   };
 
@@ -309,7 +307,13 @@ export default function RiderDashboard() {
                     💵 <strong>Payment:</strong> Cash only
                   </p>
 
-                  <button className="btn-submit" onClick={handleBooking}>Confirm Booking</button>
+                  <button 
+                    className="btn-submit" 
+                    onClick={handleBooking}
+                    disabled={(bookingCounts[selectedLine.id] || 0) >= (selectedLine.maxSeats || 10)}
+                  >
+                    {(bookingCounts[selectedLine.id] || 0) >= (selectedLine.maxSeats || 10) ? 'Trip Full' : 'Confirm Booking'}
+                  </button>
                 </div>
               </div>
             )}
@@ -343,6 +347,24 @@ export default function RiderDashboard() {
           </div>
         )}
       </div>
+
+      {fullScreenMap && driverLocation && (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'white'}}>
+          <div style={{padding: '15px', background: '#4F46E5', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <div>
+              <h3>🚗 Live Tracking</h3>
+              <p>Driver: {activeDriver?.driverName}</p>
+            </div>
+            <button onClick={() => setFullScreenMap(false)} style={{background: 'white', color: '#4F46E5', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold'}}>✕ Close</button>
+          </div>
+          <MapContainer center={[driverLocation.lat, driverLocation.lng]} zoom={15} style={{height: 'calc(100vh - 80px)', width: '100%'}}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <Marker position={[driverLocation.lat, driverLocation.lng]} icon={carIcon}>
+              <Popup>{activeDriver?.driverName}</Popup>
+            </Marker>
+          </MapContainer>
+        </div>
+      )}
     </div>
   );
 }

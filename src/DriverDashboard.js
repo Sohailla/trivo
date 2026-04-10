@@ -149,11 +149,33 @@ export default function DriverDashboard() {
   const handleNotificationClick = async (notif) => {
     if (notif.type === "new_booking") {
       setActiveView("trips");
-      // Find and open the trip
-      const trip = myTrips.find(t => t.id === notif.tripId);
+      
+      // Refresh trips to get updated riders
+      const q = query(collection(db, "lines"), where("driverId", "==", auth.currentUser.uid));
+      const snapshot = await getDocs(q);
+      const trips = [];
+      
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      for (const lineDoc of snapshot.docs) {
+        const lineData = { id: lineDoc.id, ...lineDoc.data() };
+        const bookingsQuery = query(
+          collection(db, "bookings"),
+          where("lineId", "==", lineDoc.id),
+          where("tripDate", "==", tomorrowStr)
+        );
+        const bookingsSnap = await getDocs(bookingsQuery);
+        const riders = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        trips.push({ ...lineData, riders, tripDate: tomorrowStr });
+      }
+      setMyTrips(trips);
+      
+      // Open trip
+      const trip = trips.find(t => t.id === notif.tripId);
       if (trip) setSelectedTrip(trip);
     }
-    // Mark as read
     await updateDoc(doc(db, "notifications", notif.id), { read: true });
   };
 
