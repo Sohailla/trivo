@@ -5,7 +5,7 @@ import "./RiderDashboard.css";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { doc, onSnapshot, collection, addDoc, query, where, getDocs, getDoc, deleteDoc } from "firebase/firestore";
+import { doc, onSnapshot, collection, addDoc, query, where, getDocs, getDoc, deleteDoc, updateDoc } from "firebase/firestore";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -26,6 +26,9 @@ export default function RiderDashboard() {
   const [driverLocation, setDriverLocation] = useState(null);
   const [activeDriver, setActiveDriver] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [bookingCounts, setBookingCounts] = useState({});
+  // eslint-disable-next-line
+  const [showLiveMap, setShowLiveMap] = useState(false);
 
   useEffect(() => {
     const fetchRiderInfo = async () => {
@@ -47,6 +50,27 @@ export default function RiderDashboard() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const fetchBookingCounts = async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      const counts = {};
+      for (const line of lines) {
+        const q = query(
+          collection(db, "bookings"),
+          where("lineId", "==", line.id),
+          where("tripDate", "==", tomorrowStr)
+        );
+        const snapshot = await getDocs(q);
+        counts[line.id] = snapshot.size;
+      }
+      setBookingCounts(counts);
+    };
+    if (lines.length > 0) fetchBookingCounts();
+  }, [lines]);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -74,9 +98,13 @@ export default function RiderDashboard() {
   }, []);
 
   useEffect(() => {
-    const todayBooking = myBookings.find(b => b.tripDate === new Date().toISOString().split('T')[0]);
-    if (todayBooking) {
-      const line = lines.find(l => l.id === todayBooking.lineId);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    const tomorrowBooking = myBookings.find(b => b.tripDate === tomorrowStr);
+    if (tomorrowBooking) {
+      const line = lines.find(l => l.id === tomorrowBooking.lineId);
       if (line) {
         const tripRef = doc(db, "tripLines", line.id);
         const unsubscribe = onSnapshot(tripRef, (doc) => {
@@ -97,6 +125,14 @@ export default function RiderDashboard() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
+    // Check if seats available
+    const maxSeats = selectedLine.maxSeats || 10;
+    const currentBookings = bookingCounts[selectedLine.id] || 0;
+    
+    if (currentBookings >= maxSeats) {
+      return alert("Sorry, this trip is fully booked!");
+    }
+
     await addDoc(collection(db, "bookings"), {
       riderId: auth.currentUser.uid,
       riderName: riderInfo?.name,
@@ -107,14 +143,29 @@ export default function RiderDashboard() {
       destination,
       tripDate: tomorrowStr,
       status: "confirmed",
+      paymentMethod: "cash",
       createdAt: new Date().toISOString(),
     });
 
-    alert("Booking confirmed!");
+    // Notify driver
+    await addDoc(collection(db, "notifications"), {
+      userId: selectedLine.driverId,
+      type: "new_booking",
+      message: `${riderInfo?.name} booked your trip ${selectedLine.name} for ${tomorrowStr}`,
+      tripId: selectedLine.id,
+      createdAt: new Date().toISOString(),
+      read: false,
+    });
+
+    alert("Booking confirmed! Payment: Cash");
     setPickup("");
     setDestination("");
     setSelectedLine(null);
-    window.location.reload();
+    
+    // Refresh bookings
+    const q = query(collection(db, "bookings"), where("riderId", "==", auth.currentUser.uid));
+    const snapshot = await getDocs(q);
+    setMyBookings(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
   };
 
   const cancelBooking = async (booking) => {
@@ -128,13 +179,26 @@ export default function RiderDashboard() {
     if (window.confirm("Cancel this booking?")) {
       await deleteDoc(doc(db, "bookings", booking.id));
       alert("Booking cancelled");
-      window.location.reload();
+      
+      // Refresh bookings
+      const q = query(collection(db, "bookings"), where("riderId", "==", auth.currentUser.uid));
+      const snapshot = await getDocs(q);
+      setMyBookings(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }
   };
 
   const handleLogout = async () => {
     await signOut(auth);
     window.location.reload();
+  };
+
+  const handleNotificationClick = async (notif) => {
+    if (notif.type === "trip_started") {
+      setShowLiveMap(true);
+      setActiveView("home");
+    }
+    // Mark as read
+    await updateDoc(doc(db, "notifications", notif.id), { read: true });
   };
 
   const carIcon = new L.Icon({
@@ -168,7 +232,14 @@ export default function RiderDashboard() {
         {notifications.length > 0 && (
           <div className="notifications">
             {notifications.map(n => (
-              <div key={n.id} className="notif-item">🔔 {n.message}</div>
+              <div 
+                key={n.id} 
+                className="notif-item" 
+                onClick={() => handleNotificationClick(n)}
+                style={{cursor: 'pointer'}}
+              >
+                🔔 {n.message}
+              </div>
             ))}
           </div>
         )}
@@ -196,13 +267,27 @@ export default function RiderDashboard() {
         {activeView === "lines" && (
           <div className="lines-view">
             <h2>Available Lines</h2>
-            {lines.map(line => (
-              <div key={line.id} className="line-card" onClick={() => setSelectedLine(line)}>
-                <h3>{line.name}</h3>
-                <p>🕐 {line.tripTime}</p>
-                <p>📍 {line.pickPoints.join(", ")}</p>
-              </div>
-            ))}
+            {lines.map(line => {
+              const maxSeats = line.maxSeats || 10;
+              const booked = bookingCounts[line.id] || 0;
+              const available = maxSeats - booked;
+              const isFull = available <= 0;
+
+              return (
+                <div 
+                  key={line.id} 
+                  className={`line-card ${isFull ? 'disabled' : ''}`}
+                  onClick={() => !isFull && setSelectedLine(line)}
+                  style={isFull ? {opacity: 0.6, cursor: 'not-allowed'} : {}}
+                >
+                  <h3>{line.name}</h3>
+                  <p>🕐 {line.tripTime}</p>
+                  <p>📍 {line.pickPoints.join(", ")}</p>
+                  <p>🪑 {available}/{maxSeats} seats available</p>
+                  {isFull && <p style={{color: 'red', fontWeight: 'bold'}}>FULL</p>}
+                </div>
+              );
+            })}
 
             {selectedLine && (
               <div className="booking-modal">
@@ -219,6 +304,10 @@ export default function RiderDashboard() {
                     <option value="">Select Destination</option>
                     {selectedLine.destinations.map((d, i) => <option key={i} value={d}>{d}</option>)}
                   </select>
+
+                  <p style={{background: '#f0f0f0', padding: '10px', borderRadius: '5px', marginTop: '10px'}}>
+                    💵 <strong>Payment:</strong> Cash only
+                  </p>
 
                   <button className="btn-submit" onClick={handleBooking}>Confirm Booking</button>
                 </div>

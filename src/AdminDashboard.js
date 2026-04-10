@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   const [destinations, setDestinations] = useState([""]);
   const [assignedDriver, setAssignedDriver] = useState("");
   const [tripTime, setTripTime] = useState("08:00");
+  const [maxSeats, setMaxSeats] = useState(10);
 
   useEffect(() => {
     const loadAdmin = async () => {
@@ -89,6 +90,7 @@ export default function AdminDashboard() {
     setDestinations(line.destinations);
     setAssignedDriver(line.driverId);
     setTripTime(line.tripTime);
+    setMaxSeats(line.maxSeats || 10);
     setShowLineForm(true);
   };
 
@@ -108,6 +110,7 @@ export default function AdminDashboard() {
         destinations: validDestinations,
         driverId: assignedDriver,
         tripTime,
+        maxSeats,
       });
 
       await updateDoc(doc(db, "users", assignedDriver), {
@@ -165,6 +168,7 @@ export default function AdminDashboard() {
         destinations: validDestinations,
         driverId: assignedDriver,
         tripTime,
+        maxSeats,
         createdAt: new Date().toISOString(),
         isActive: true,
       });
@@ -188,6 +192,7 @@ export default function AdminDashboard() {
     setDestinations([""]);
     setAssignedDriver("");
     setTripTime("08:00");
+    setMaxSeats(10);
   };
 
   const deleteLine = async (lineId) => {
@@ -397,6 +402,15 @@ export default function AdminDashboard() {
                 className="input-field"
               />
 
+              <label><strong>Max Seats:</strong></label>
+              <input
+                type="number"
+                min="1"
+                value={maxSeats}
+                onChange={(e) => setMaxSeats(parseInt(e.target.value))}
+                className="input-field"
+              />
+
               <button className="btn-submit" onClick={editingLine ? updateLine : createLine}>
                 {editingLine ? "Update Line" : "Create Line"}
               </button>
@@ -412,6 +426,7 @@ export default function AdminDashboard() {
                   <p><strong>Destinations:</strong> {line.destinations.join(", ")}</p>
                   <p><strong>Driver:</strong> {users.find(u => u.id === line.driverId)?.name || "Unassigned"}</p>
                   <p><strong>Time:</strong> {line.tripTime}</p>
+                  <p><strong>Seats:</strong> {line.maxSeats || 10}</p>
                 </div>
                 <div style={{display: 'flex', gap: '10px'}}>
                   <button className="btn-primary" onClick={() => startEditLine(line)}>✏️</button>

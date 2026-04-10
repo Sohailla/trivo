@@ -12,6 +12,7 @@ export default function DriverDashboard() {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [isSharing, setIsSharing] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     const fetchDriverInfo = async () => {
@@ -25,6 +26,19 @@ export default function DriverDashboard() {
       }
     };
     fetchDriverInfo();
+  }, []);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const q = query(
+      collection(db, "notifications"),
+      where("userId", "==", auth.currentUser.uid),
+      where("read", "==", false)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setNotifications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -69,7 +83,7 @@ export default function DriverDashboard() {
       await addDoc(collection(db, "notifications"), {
         userId: rider.riderId,
         type: "trip_started",
-        message: `Your trip on ${trip.name} has started!`,
+        message: `Your trip on ${trip.name} has started! Driver is sharing location.`,
         tripId: trip.id,
         createdAt: new Date().toISOString(),
         read: false,
@@ -132,6 +146,17 @@ export default function DriverDashboard() {
     window.location.reload();
   };
 
+  const handleNotificationClick = async (notif) => {
+    if (notif.type === "new_booking") {
+      setActiveView("trips");
+      // Find and open the trip
+      const trip = myTrips.find(t => t.id === notif.tripId);
+      if (trip) setSelectedTrip(trip);
+    }
+    // Mark as read
+    await updateDoc(doc(db, "notifications", notif.id), { read: true });
+  };
+
   return (
     <div className="dashboard-container">
       <div className="sidebar" style={{ left: sidebarOpen ? 0 : '-280px' }}>
@@ -151,7 +176,23 @@ export default function DriverDashboard() {
         <div className="top-bar">
           <button className="menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
           <h1>Driver Dashboard</h1>
+          {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
         </div>
+
+        {notifications.length > 0 && (
+          <div className="notifications">
+            {notifications.map(n => (
+              <div 
+                key={n.id} 
+                className="notif-item"
+                onClick={() => handleNotificationClick(n)}
+                style={{cursor: 'pointer'}}
+              >
+                🔔 {n.message}
+              </div>
+            ))}
+          </div>
+        )}
 
         {activeView === "home" && (
           <div className="home-view">
