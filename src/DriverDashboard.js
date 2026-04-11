@@ -241,7 +241,7 @@ export default function DriverDashboard() {
 
         {activeView === "trips" && (
           <div className="trips-view">
-            <h2>My Trips</h2>
+            <h2>{t('myTrips')}</h2>
             {myTrips.map(trip => (
               <div key={trip.id} className="trip-card" onClick={() => setSelectedTrip(trip)}>
                 <h3>{trip.name}</h3>
@@ -273,7 +273,7 @@ export default function DriverDashboard() {
               <p><strong>Time:</strong> {selectedTrip.tripTime}</p>
               <p><strong>Date:</strong> {selectedTrip.tripDate}</p>
               
-              <h3>Riders ({selectedTrip.riders.length})</h3>
+              <h3>{t('riders')} ({selectedTrip.riders.length})</h3>
               {selectedTrip.riders.map(rider => (
                 <div key={rider.id} className="rider-item">
                   <p><strong>{rider.riderName}</strong></p>
@@ -288,14 +288,14 @@ export default function DriverDashboard() {
                   onClick={() => startTrip(selectedTrip)}
                   disabled={!canStartTrip(selectedTrip)}
                 >
-                  {canStartTrip(selectedTrip) ? "Start Trip 🚀" : "Not Time Yet ⏰"}
+                  {canStartTrip(selectedTrip) ? t('startTrip') + " 🚀" : "Not Time Yet ⏰"}
                 </button>
               ) : (
                 <>
-                  <button className="btn-stop" onClick={() => setIsSharing(false)}>Stop Trip ❌</button>
+                  <button className="btn-stop" onClick={() => setIsSharing(false)}>{t('stopTrip')} ❌</button>
                   <div className="location-status">
                     <div className="pulse"></div>
-                    <p>Sharing Location</p>
+                    <p>{t('sharingLocation')}</p>
                   </div>
                   {currentLocation && (
                     <>

@@ -248,7 +248,7 @@ export default function RiderDashboard() {
 
         {activeView === "lines" && (
           <div className="lines-view">
-            <h2>Available Lines</h2>
+            <h2>{t('availableLines')}</h2>
             {lines.map(line => (
               <div key={line.id} className="line-card" onClick={() => setSelectedLine(line)}>
                 <h3>{line.name}</h3>
@@ -295,7 +295,7 @@ export default function RiderDashboard() {
                     className="btn-submit" 
                     onClick={handleBooking}
                   >
-                    Confirm Booking
+                    {t('confirmBooking')}
                   </button>
                 </div>
               </div>
@@ -305,14 +305,14 @@ export default function RiderDashboard() {
 
         {activeView === "bookings" && (
           <div className="bookings-view">
-            <h2>My Bookings</h2>
+            <h2>{t('myBookings')}</h2>
             {myBookings.map(booking => (
               <div key={booking.id} className="booking-card">
                 <h3>{booking.lineName}</h3>
                 <p>📍 {booking.pickup} → {booking.destination}</p>
                 <p>📅 {booking.tripDate}</p>
                 <p>Status: <span className="status-confirmed">{booking.status}</span></p>
-                <button className="btn-cancel" onClick={() => cancelBooking(booking)}>Cancel</button>
+                <button className="btn-cancel" onClick={() => cancelBooking(booking)}>{t('cancel')}</button>
               </div>
             ))}
           </div>
