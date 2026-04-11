@@ -16,6 +16,8 @@ export default function DriverDashboard() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [filterDate, setFilterDate] = useState("");
+  const [filterLine, setFilterLine] = useState("");
 
   useEffect(() => {
     const fetchDriverInfo = async () => {
@@ -230,6 +232,7 @@ export default function DriverDashboard() {
         <nav>
           <button onClick={() => { setActiveView("home"); setSidebarOpen(false); }}>🏠 {t('home')}</button>
           <button onClick={() => { setActiveView("trips"); setSidebarOpen(false); }}>📋 {t('myTrips')}</button>
+          <button onClick={() => { setActiveView("riders"); setSidebarOpen(false); }}>👥 All Riders</button>
           <button onClick={() => { setActiveView("profile"); setSidebarOpen(false); }}>👤 {t('profile')}</button>
           <button onClick={handleLogout}>🚪 {t('logout')}</button>
         </nav>
@@ -280,14 +283,12 @@ export default function DriverDashboard() {
                 <p>{t('activeLines')}</p>
               </div>
               <div className="stat-box" onClick={() => {
-                setActiveView("trips");
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const tomorrowStr = tomorrow.toISOString().split('T')[0];
-                setMyTrips(prev => prev.filter(t => t.tripDate === tomorrowStr));
+                setActiveView("riders");
+                setFilterDate("");
+                setFilterLine("");
               }} style={{cursor: 'pointer'}}>
-                <h3>{getTomorrowRiders()}</h3>
-                <p>{t('tomorrowRiders')}</p>
+                <h3>{myTrips.reduce((sum, trip) => sum + (trip.riders?.length || 0), 0)}</h3>
+                <p>Total Riders</p>
               </div>
             </div>
           </div>
@@ -304,6 +305,64 @@ export default function DriverDashboard() {
                 <p>📅 {trip.tripDate}</p>
               </div>
             ))}
+          </div>
+        )}
+
+        {activeView === "riders" && (
+          <div className="riders-view">
+            <h2>All Riders</h2>
+            <div style={{background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px'}}>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                <div>
+                  <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Filter by Date</label>
+                  <input 
+                    type="date" 
+                    value={filterDate} 
+                    onChange={(e) => setFilterDate(e.target.value)}
+                    className="input-field"
+                    style={{margin: 0}}
+                  />
+                </div>
+                <div>
+                  <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Filter by Line</label>
+                  <select 
+                    value={filterLine} 
+                    onChange={(e) => setFilterLine(e.target.value)}
+                    className="input-field"
+                    style={{margin: 0}}
+                  >
+                    <option value="">All Lines</option>
+                    {[...new Set(myTrips.map(t => t.name))].map(lineName => (
+                      <option key={lineName} value={lineName}>{lineName}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button 
+                onClick={() => {setFilterDate(""); setFilterLine("");}}
+                style={{marginTop: '15px', padding: '10px 20px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer'}}
+              >
+                Clear Filters
+              </button>
+            </div>
+            
+            {myTrips
+              .filter(trip => !filterDate || trip.tripDate === filterDate)
+              .filter(trip => !filterLine || trip.name === filterLine)
+              .map(trip => (
+                <div key={trip.id + trip.tripDate} className="trip-card" style={{cursor: 'default'}}>
+                  <h3>{trip.name}</h3>
+                  <p>📅 {trip.tripDate} | 🕐 {trip.tripTime}</p>
+                  <p style={{fontWeight: 'bold', color: '#667eea', fontSize: '18px'}}>👥 {trip.riders.length} Riders</p>
+                  {trip.riders.map(rider => (
+                    <div key={rider.id} className="rider-item" style={{marginTop: '10px'}}>
+                      <p><strong>{rider.riderName}</strong></p>
+                      <p>📞 {rider.riderPhone}</p>
+                      <p>📍 {rider.pickup} → {rider.destination}</p>
+                    </div>
+                  ))}
+                </div>
+              ))}
           </div>
         )}
 
