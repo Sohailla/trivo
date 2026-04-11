@@ -23,10 +23,10 @@ export default function RiderDashboard() {
   const [selectedLine, setSelectedLine] = useState(null);
   const [pickup, setPickup] = useState("");
   const [destination, setDestination] = useState("");
+  const [tripDate, setTripDate] = useState("");
   const [driverLocation, setDriverLocation] = useState(null);
   const [activeDriver, setActiveDriver] = useState(null);
   const [notifications, setNotifications] = useState([]);
-  const [bookingCounts, setBookingCounts] = useState({});
   const [showLiveMap, setShowLiveMap] = useState(false);
   const [fullScreenMap, setFullScreenMap] = useState(false);
 
@@ -50,27 +50,6 @@ export default function RiderDashboard() {
     });
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    const fetchBookingCounts = async () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-      const counts = {};
-      for (const line of lines) {
-        const q = query(
-          collection(db, "bookings"),
-          where("lineId", "==", line.id),
-          where("tripDate", "==", tomorrowStr)
-        );
-        const snapshot = await getDocs(q);
-        counts[line.id] = snapshot.size;
-      }
-      setBookingCounts(counts);
-    };
-    if (lines.length > 0) fetchBookingCounts();
-  }, [lines]);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -119,18 +98,20 @@ export default function RiderDashboard() {
   }, [myBookings, lines]);
 
   const handleBooking = async () => {
-    if (!selectedLine || !pickup || !destination) return alert("Fill all fields");
+    if (!selectedLine || !pickup || !destination || !tripDate) return alert("Fill all fields");
 
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-    // Check if seats available
+    // Check if seats available for selected date
     const maxSeats = selectedLine.maxSeats || 10;
-    const currentBookings = bookingCounts[selectedLine.id] || 0;
+    const bookingsQuery = query(
+      collection(db, "bookings"),
+      where("lineId", "==", selectedLine.id),
+      where("tripDate", "==", tripDate)
+    );
+    const bookingsSnap = await getDocs(bookingsQuery);
+    const currentBookings = bookingsSnap.size;
     
     if (currentBookings >= maxSeats) {
-      return alert("Sorry, this trip is fully booked!");
+      return alert("Sorry, this trip is fully booked for this date!");
     }
 
     await addDoc(collection(db, "bookings"), {
@@ -141,7 +122,7 @@ export default function RiderDashboard() {
       lineId: selectedLine.id,
       pickup,
       destination,
-      tripDate: tomorrowStr,
+      tripDate,
       status: "confirmed",
       paymentMethod: "cash",
       createdAt: new Date().toISOString(),
@@ -151,7 +132,7 @@ export default function RiderDashboard() {
     await addDoc(collection(db, "notifications"), {
       userId: selectedLine.driverId,
       type: "new_booking",
-      message: `${riderInfo?.name} booked your trip ${selectedLine.name} for ${tomorrowStr}`,
+      message: `${riderInfo?.name} booked your trip ${selectedLine.name} for ${tripDate}`,
       tripId: selectedLine.id,
       createdAt: new Date().toISOString(),
       read: false,
@@ -160,6 +141,7 @@ export default function RiderDashboard() {
     alert("Booking confirmed! Payment: Cash");
     setPickup("");
     setDestination("");
+    setTripDate("");
     setSelectedLine(null);
     
     // Refresh bookings
@@ -265,27 +247,14 @@ export default function RiderDashboard() {
         {activeView === "lines" && (
           <div className="lines-view">
             <h2>Available Lines</h2>
-            {lines.map(line => {
-              const maxSeats = line.maxSeats || 10;
-              const booked = bookingCounts[line.id] || 0;
-              const available = maxSeats - booked;
-              const isFull = available <= 0;
-
-              return (
-                <div 
-                  key={line.id} 
-                  className={`line-card ${isFull ? 'disabled' : ''}`}
-                  onClick={() => !isFull && setSelectedLine(line)}
-                  style={isFull ? {opacity: 0.6, cursor: 'not-allowed'} : {}}
-                >
-                  <h3>{line.name}</h3>
-                  <p>🕐 {line.tripTime}</p>
-                  <p>📍 {line.pickPoints.join(", ")}</p>
-                  <p>🪑 {available}/{maxSeats} seats available</p>
-                  {isFull && <p style={{color: 'red', fontWeight: 'bold'}}>FULL</p>}
-                </div>
-              );
-            })}
+            {lines.map(line => (
+              <div key={line.id} className="line-card" onClick={() => setSelectedLine(line)}>
+                <h3>{line.name}</h3>
+                <p>🕐 {line.tripTime}</p>
+                <p>📍 {line.pickPoints.join(", ")}</p>
+                <p>🪑 {line.maxSeats || 10} seats per trip</p>
+              </div>
+            ))}
 
             {selectedLine && (
               <div className="booking-modal">
@@ -293,6 +262,15 @@ export default function RiderDashboard() {
                   <button className="close-btn" onClick={() => setSelectedLine(null)}>✕</button>
                   <h2>Book {selectedLine.name}</h2>
                   
+                  <label style={{fontWeight: 'bold', marginTop: '10px', display: 'block'}}>Select Date</label>
+                  <input 
+                    type="date" 
+                    value={tripDate} 
+                    min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                    onChange={(e) => setTripDate(e.target.value)} 
+                    className="input-field"
+                  />
+
                   <select value={pickup} onChange={(e) => setPickup(e.target.value)} className="input-field">
                     <option value="">Select Pickup</option>
                     {selectedLine.pickPoints.map((p, i) => <option key={i} value={p}>{p}</option>)}
@@ -304,15 +282,18 @@ export default function RiderDashboard() {
                   </select>
 
                   <p style={{background: '#f0f0f0', padding: '10px', borderRadius: '5px', marginTop: '10px'}}>
+                    🕐 <strong>Time:</strong> {selectedLine.tripTime}
+                  </p>
+
+                  <p style={{background: '#f0f0f0', padding: '10px', borderRadius: '5px', marginTop: '10px'}}>
                     💵 <strong>Payment:</strong> Cash only
                   </p>
 
                   <button 
                     className="btn-submit" 
                     onClick={handleBooking}
-                    disabled={(bookingCounts[selectedLine.id] || 0) >= (selectedLine.maxSeats || 10)}
                   >
-                    {(bookingCounts[selectedLine.id] || 0) >= (selectedLine.maxSeats || 10) ? 'Trip Full' : 'Confirm Booking'}
+                    Confirm Booking
                   </button>
                 </div>
               </div>

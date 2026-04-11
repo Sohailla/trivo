@@ -46,10 +46,13 @@ export default function Profile({ onBack }) {
 
     try {
       // Update Firestore
+      const status = (role === 'driver' || role === 'admin') ? 'pending' : 'active';
+      
       await updateDoc(doc(db, "users", user.uid), {
         name,
         phone,
         role,
+        status,
         updatedAt: new Date().toISOString(),
       });
 
@@ -58,7 +61,11 @@ export default function Profile({ onBack }) {
         displayName: name,
       });
 
-      setMessage("✅ Profile updated successfully!");
+      if (status === 'pending') {
+        setMessage("✅ Profile updated! Waiting for admin approval.");
+      } else {
+        setMessage("✅ Profile updated successfully!");
+      }
       setIsEditing(false);
       
       setTimeout(() => setMessage(""), 3000);
