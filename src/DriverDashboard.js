@@ -49,24 +49,40 @@ export default function DriverDashboard() {
 
     const q = query(collection(db, "lines"), where("driverId", "==", auth.currentUser.uid));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const trips = [];
+      const tripsMap = new Map();
+      
       for (const lineDoc of snapshot.docs) {
         const lineData = { id: lineDoc.id, ...lineDoc.data() };
         
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
+        // Get all future bookings for this line
         const bookingsQuery = query(
           collection(db, "bookings"),
-          where("lineId", "==", lineDoc.id),
-          where("tripDate", "==", tomorrowStr)
+          where("lineId", "==", lineDoc.id)
         );
         const bookingsSnap = await getDocs(bookingsQuery);
-        const riders = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-        trips.push({ ...lineData, riders, tripDate: tomorrowStr });
+        
+        // Group by date
+        bookingsSnap.docs.forEach(doc => {
+          const booking = doc.data();
+          const dateKey = `${lineDoc.id}_${booking.tripDate}`;
+          
+          if (!tripsMap.has(dateKey)) {
+            tripsMap.set(dateKey, {
+              ...lineData,
+              tripDate: booking.tripDate,
+              riders: []
+            });
+          }
+          
+          tripsMap.get(dateKey).riders.push({ id: doc.id, ...booking });
+        });
       }
+      
+      // Convert to array and sort by date
+      const trips = Array.from(tripsMap.values()).sort((a, b) => 
+        new Date(a.tripDate) - new Date(b.tripDate)
+      );
+      
       setMyTrips(trips);
     });
 
