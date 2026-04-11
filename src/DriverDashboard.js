@@ -96,7 +96,7 @@ export default function DriverDashboard() {
     
     return myTrips
       .filter(trip => trip.tripDate === tomorrowStr)
-      .reduce((sum, trip) => sum + trip.riders.length, 0);
+      .reduce((sum, trip) => sum + (trip.riders?.length || 0), 0);
   };
 
   const canStartTrip = (trip) => {
