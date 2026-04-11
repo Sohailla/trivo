@@ -89,6 +89,24 @@ export default function Login() {
         status,
       });
 
+      // Notify all admins if pending approval
+      if (status === "pending") {
+        const { collection, query, where, getDocs } = await import("firebase/firestore");
+        const adminsQuery = query(collection(db, "users"), where("role", "==", "admin"));
+        const adminsSnap = await getDocs(adminsQuery);
+        
+        for (const adminDoc of adminsSnap.docs) {
+          await setDoc(doc(db, "notifications", `${adminDoc.id}_${Date.now()}`), {
+            userId: adminDoc.id,
+            type: "approval_request",
+            message: `${name} requested ${selectedRole} account approval`,
+            targetUserId: user.uid,
+            createdAt: new Date().toISOString(),
+            read: false,
+          });
+        }
+      }
+
       alert(
         status === "pending"
           ? "Registration submitted! Wait for admin approval."
