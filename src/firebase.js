@@ -1,6 +1,6 @@
 // firebase.js
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // 🔥 your config (keep yours)
@@ -19,3 +19,6 @@ const app = initializeApp(firebaseConfig);
 // ✅ EXPORT THESE
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Keep users logged in
+setPersistence(auth, browserLocalPersistence);
