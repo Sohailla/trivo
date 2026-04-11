@@ -16,6 +16,7 @@ export default function AdminDashboard() {
   const [adminInfo, setAdminInfo] = useState(null);
   const [pendingUsers, setPendingUsers] = useState([]);
   const [dateFilter, setDateFilter] = useState("");
+  const [lineFilter, setLineFilter] = useState("");
   
   // Line form
   const [showLineForm, setShowLineForm] = useState(false);
@@ -504,8 +505,12 @@ export default function AdminDashboard() {
 
       {activeTab === "bookings" && (
         <div className="section">
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px'}}>
-            <h2>All Bookings ({bookings.filter(booking => !dateFilter || booking.tripDate === dateFilter).length})</h2>
+          <h2>All Bookings ({bookings.filter(booking => 
+            (!dateFilter || booking.tripDate === dateFilter) &&
+            (!lineFilter || booking.lineId === lineFilter)
+          ).length})</h2>
+          
+          <div style={{display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap'}}>
             <input 
               type="date"
               value={dateFilter}
@@ -514,10 +519,36 @@ export default function AdminDashboard() {
               style={{width: '200px', margin: 0}}
               placeholder="Filter by date"
             />
+            
+            <select 
+              value={lineFilter}
+              onChange={(e) => setLineFilter(e.target.value)}
+              className="input-field"
+              style={{width: '200px', margin: 0}}
+            >
+              <option value="">All Lines</option>
+              {lines.map(line => (
+                <option key={line.id} value={line.id}>{line.name}</option>
+              ))}
+            </select>
+
+            {(dateFilter || lineFilter) && (
+              <button 
+                className="btn-small" 
+                onClick={() => { setDateFilter(""); setLineFilter(""); }}
+                style={{margin: 0}}
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
+
           <div className="bookings-list">
             {bookings
-              .filter(booking => !dateFilter || booking.tripDate === dateFilter)
+              .filter(booking => 
+                (!dateFilter || booking.tripDate === dateFilter) &&
+                (!lineFilter || booking.lineId === lineFilter)
+              )
               .map(booking => (
               <div key={booking.id} className="booking-item">
                 <div>
