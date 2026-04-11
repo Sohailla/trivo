@@ -77,35 +77,23 @@ export default function AdminDashboard() {
 
   const approveUser = async (user) => {
     if (window.confirm(`Approve ${user.name}?`)) {
-      // Update user status to active
-      await updateDoc(doc(db, "users", user.id), { status: "active" });
+      try {
+        // Update user status to active
+        await updateDoc(doc(db, "users", user.id), { status: "active" });
 
-      // Send email notification to user
-      await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          service_id: "service_trivo",
-          template_id: "template_approval",
-          user_id: "YOUR_EMAILJS_USER_ID",
-          template_params: {
-            to_email: user.email,
-            to_name: user.name,
-            message: `Your ${user.role} account has been approved! You can now login at: https://trivo.com/login`,
-          }
-        })
-      }).catch(err => console.log("Email send failed:", err));
+        // Notify user in-app
+        await addDoc(collection(db, "notifications"), {
+          userId: user.id,
+          type: "account_approved",
+          message: `Your ${user.role} account has been approved! You can now login.`,
+          createdAt: new Date().toISOString(),
+          read: false,
+        });
 
-      // Notify user in-app
-      await addDoc(collection(db, "notifications"), {
-        userId: user.id,
-        type: "account_approved",
-        message: `Your ${user.role} account has been approved! You can now login.`,
-        createdAt: new Date().toISOString(),
-        read: false,
-      });
-
-      alert("User approved! Email notification sent.");
+        alert("User approved successfully!");
+      } catch (error) {
+        alert("Error approving user: " + error.message);
+      }
     }
   };
 
@@ -166,8 +154,11 @@ export default function AdminDashboard() {
     if (window.confirm("Delete this booking? This will permanently remove it from Firebase.")) {
       try {
         await deleteDoc(doc(db, "bookings", bookingId));
+        
+        console.log("Booking deleted:", bookingId);
         alert("Booking deleted successfully from Firebase!");
       } catch (error) {
+        console.error("Delete error:", error);
         alert("Error deleting booking: " + error.message);
       }
     }
@@ -239,8 +230,11 @@ export default function AdminDashboard() {
     if (window.confirm("Delete this line? This will permanently remove it from Firebase.")) {
       try {
         await deleteDoc(doc(db, "lines", lineId));
+        
+        console.log("Line deleted:", lineId);
         alert("Line deleted successfully from Firebase!");
       } catch (error) {
+        console.error("Delete error:", error);
         alert("Error deleting line: " + error.message);
       }
     }
@@ -249,9 +243,13 @@ export default function AdminDashboard() {
   const deleteUser = async (userId) => {
     if (window.confirm("Delete this user? This will permanently remove them from Firebase.")) {
       try {
+        // First delete from Firestore
         await deleteDoc(doc(db, "users", userId));
+        
+        console.log("User deleted:", userId);
         alert("User deleted successfully from Firebase!");
       } catch (error) {
+        console.error("Delete error:", error);
         alert("Error deleting user: " + error.message);
       }
     }
