@@ -15,6 +15,7 @@ export default function AdminDashboard() {
   const [showProfile, setShowProfile] = useState(false);
   const [adminInfo, setAdminInfo] = useState(null);
   const [pendingUsers, setPendingUsers] = useState([]);
+  const [dateFilter, setDateFilter] = useState("");
   
   // Line form
   const [showLineForm, setShowLineForm] = useState(false);
@@ -503,9 +504,21 @@ export default function AdminDashboard() {
 
       {activeTab === "bookings" && (
         <div className="section">
-          <h2>All Bookings</h2>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+            <h2>All Bookings</h2>
+            <input 
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="input-field"
+              style={{width: '200px'}}
+              placeholder="Filter by date"
+            />
+          </div>
           <div className="bookings-list">
-            {bookings.map(booking => (
+            {bookings
+              .filter(booking => !dateFilter || booking.tripDate === dateFilter)
+              .map(booking => (
               <div key={booking.id} className="booking-item">
                 <div>
                   <h3>{booking.riderName}</h3>
