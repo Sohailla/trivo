@@ -276,7 +276,7 @@ export default function DriverDashboard() {
             </div>
             <div className="quick-stats">
               <div className="stat-box">
-                <h3>{myTrips.length}</h3>
+                <h3>{new Set(myTrips.map(t => t.id)).size}</h3>
                 <p>{t('activeLines')}</p>
               </div>
               <div className="stat-box">

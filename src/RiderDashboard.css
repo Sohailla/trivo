@@ -102,14 +102,21 @@
 }
 
 .notif-badge {
-  position: absolute;
-  right: 20px;
   background: #ff4444;
   color: white;
-  padding: 5px 12px;
+  padding: 8px 15px;
   border-radius: 20px;
   font-size: 14px;
   font-weight: bold;
+  margin-left: auto;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s;
+}
+
+.notif-badge:hover {
+  background: #ff2222;
+  transform: scale(1.05);
 }
 
 .notifications {
@@ -385,16 +392,27 @@
     left: -100%;
   }
   
+  .sidebar.open {
+    left: 0;
+  }
+  
   .main-content {
     padding: 10px;
+    margin-left: 0;
   }
 
   .top-bar {
     padding: 15px;
+    flex-wrap: wrap;
   }
 
   .top-bar h1 {
     font-size: 18px;
+  }
+  
+  .notif-badge {
+    position: static;
+    margin-left: auto;
   }
 
   .welcome-card {
@@ -406,19 +424,51 @@
   }
   
   .quick-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  
+  .stat-box {
+    padding: 20px 15px;
+  }
+  
+  .stat-box h3 {
+    font-size: 28px;
+  }
+  
+  .line-card, .booking-card {
+    padding: 15px;
   }
 
   .modal-content {
     width: 95%;
     padding: 20px;
+    max-height: 85vh;
   }
 
   .input-field {
     font-size: 16px;
   }
+  
+  .btn-submit, .btn-primary {
+    padding: 14px;
+    font-size: 15px;
+  }
+  
+  .btn-cancel {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
 
   .mini-map {
     height: 200px;
+  }
+  
+  .live-trip-alert {
+    padding: 15px;
+  }
+  
+  .live-trip-alert h3 {
+    font-size: 18px;
   }
 }

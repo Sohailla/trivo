@@ -29,6 +29,7 @@ export default function RiderDashboard() {
   const [driverLocation, setDriverLocation] = useState(null);
   const [activeDriver, setActiveDriver] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showLiveMap, setShowLiveMap] = useState(false);
   const [fullScreenMap, setFullScreenMap] = useState(false);
 
@@ -228,16 +229,26 @@ export default function RiderDashboard() {
         <div className="top-bar">
           <button className="menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
           <h1>Rider Dashboard</h1>
-          {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
+          {notifications.length > 0 && (
+            <button 
+              className="notif-badge" 
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              🔔 {notifications.length}
+            </button>
+          )}
         </div>
 
-        {notifications.length > 0 && (
+        {showNotifications && notifications.length > 0 && (
           <div className="notifications">
             {notifications.map(n => (
               <div 
                 key={n.id} 
                 className="notif-item" 
-                onClick={() => handleNotificationClick(n)}
+                onClick={() => {
+                  handleNotificationClick(n);
+                  setShowNotifications(false);
+                }}
                 style={{cursor: 'pointer'}}
               >
                 🔔 {n.message}

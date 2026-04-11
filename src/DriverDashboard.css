@@ -102,14 +102,21 @@
 }
 
 .notif-badge {
-  position: absolute;
-  right: 20px;
   background: #ff4444;
   color: white;
-  padding: 5px 12px;
+  padding: 8px 15px;
   border-radius: 20px;
   font-size: 14px;
   font-weight: bold;
+  margin-left: auto;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s;
+}
+
+.notif-badge:hover {
+  background: #ff2222;
+  transform: scale(1.05);
 }
 
 .notifications {
@@ -382,9 +389,78 @@
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;
+    left: -100%;
+  }
+  
+  .sidebar.open {
+    left: 0;
+  }
+  
+  .main-content {
+    margin-left: 0;
+    padding: 10px;
+  }
+  
+  .top-bar {
+    padding: 15px;
+    flex-wrap: wrap;
+  }
+  
+  .top-bar h1 {
+    font-size: 18px;
+  }
+  
+  .notif-badge {
+    position: static;
+    margin-left: auto;
+  }
+  
+  .welcome-card {
+    padding: 20px;
+  }
+  
+  .welcome-card h2 {
+    font-size: 22px;
   }
   
   .quick-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  
+  .stat-box {
+    padding: 20px 15px;
+  }
+  
+  .stat-box h3 {
+    font-size: 28px;
+  }
+  
+  .trip-card, .line-card {
+    padding: 15px;
+  }
+  
+  .modal-content {
+    width: 95%;
+    padding: 20px;
+    max-height: 85vh;
+  }
+  
+  .rider-item {
+    padding: 12px;
+    font-size: 14px;
+  }
+  
+  .input-field {
+    font-size: 16px;
+  }
+  
+  .btn-start, .btn-stop {
+    padding: 15px;
+    font-size: 16px;
+  }
+  
+  .mini-map {
+    height: 200px;
   }
 }
