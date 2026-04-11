@@ -227,3 +227,37 @@
   background: #c82333;
   transform: scale(1.1);
 }
+
+@media (max-width: 768px) {
+  .admin-container {
+    padding: 10px;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    flex-direction: column;
+  }
+
+  .section {
+    padding: 15px;
+  }
+
+  .user-item, .line-item, .booking-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .input-field {
+    font-size: 16px;
+  }
+}

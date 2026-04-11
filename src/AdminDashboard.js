@@ -504,14 +504,14 @@ export default function AdminDashboard() {
 
       {activeTab === "bookings" && (
         <div className="section">
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-            <h2>All Bookings</h2>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px'}}>
+            <h2>All Bookings ({bookings.filter(booking => !dateFilter || booking.tripDate === dateFilter).length})</h2>
             <input 
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
               className="input-field"
-              style={{width: '200px'}}
+              style={{width: '200px', margin: 0}}
               placeholder="Filter by date"
             />
           </div>

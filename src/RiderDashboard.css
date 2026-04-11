@@ -382,9 +382,43 @@
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;
+    left: -100%;
+  }
+  
+  .main-content {
+    padding: 10px;
+  }
+
+  .top-bar {
+    padding: 15px;
+  }
+
+  .top-bar h1 {
+    font-size: 18px;
+  }
+
+  .welcome-card {
+    padding: 20px;
+  }
+
+  .welcome-card h2 {
+    font-size: 22px;
   }
   
   .quick-stats {
     grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    width: 95%;
+    padding: 20px;
+  }
+
+  .input-field {
+    font-size: 16px;
+  }
+
+  .mini-map {
+    height: 200px;
   }
 }
