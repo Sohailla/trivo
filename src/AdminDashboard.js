@@ -90,7 +90,13 @@ export default function AdminDashboard() {
           read: false,
         });
 
-        alert("User approved successfully!");
+        alert("User approved! Click OK to send email notification.");
+        
+        // Open email client to send approval email
+        const subject = "Your Trivo Account is Approved!";
+        const body = `Hi ${user.name},\n\nYour ${user.role} account has been approved!\n\nYou can now login at: https://trip-app-f2dc4.web.app\n\nBest regards,\nTrivo Admin Team`;
+        window.open(`mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+        
       } catch (error) {
         alert("Error approving user: " + error.message);
       }
