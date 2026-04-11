@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { db, auth } from "./firebase";
 import { signOut } from "firebase/auth";
+import { useLanguage } from "./LanguageContext";
 import "./RiderDashboard.css";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
@@ -15,6 +16,7 @@ L.Icon.Default.mergeOptions({
 });
 
 export default function RiderDashboard() {
+  const { t } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState("home");
   const [riderInfo, setRiderInfo] = useState(null);
@@ -194,11 +196,11 @@ export default function RiderDashboard() {
           <button onClick={() => setSidebarOpen(false)}>✕</button>
         </div>
         <nav>
-          <button onClick={() => { setActiveView("home"); setSidebarOpen(false); }}>🏠 Home</button>
-          <button onClick={() => { setActiveView("lines"); setSidebarOpen(false); }}>🛣️ Available Lines</button>
-          <button onClick={() => { setActiveView("bookings"); setSidebarOpen(false); }}>📋 My Bookings</button>
-          <button onClick={() => { setActiveView("profile"); setSidebarOpen(false); }}>👤 Profile</button>
-          <button onClick={handleLogout}>🚪 Logout</button>
+          <button onClick={() => { setActiveView("home"); setSidebarOpen(false); }}>🏠 {t('home')}</button>
+          <button onClick={() => { setActiveView("lines"); setSidebarOpen(false); }}>🛣️ {t('availableLines')}</button>
+          <button onClick={() => { setActiveView("bookings"); setSidebarOpen(false); }}>📋 {t('myBookings')}</button>
+          <button onClick={() => { setActiveView("profile"); setSidebarOpen(false); }}>👤 {t('profile')}</button>
+          <button onClick={handleLogout}>🚪 {t('logout')}</button>
         </nav>
       </div>
 
@@ -227,7 +229,7 @@ export default function RiderDashboard() {
         {activeView === "home" && (
           <div className="home-view">
             <div className="welcome-card">
-              <h2>Welcome, {riderInfo?.name}!</h2>
+              <h2>{t('welcome')}, {riderInfo?.name}!</h2>
             </div>
             {activeDriver && driverLocation && (
               <div className="live-trip-alert">

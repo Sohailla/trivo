@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { db, auth } from "./firebase";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, getDoc, query, where, getDocs } from "firebase/firestore";
 import { signOut } from "firebase/auth";
+import { useLanguage } from "./LanguageContext";
 import "./AdminDashboard.css";
 
 export default function AdminDashboard() {
+  const { t } = useLanguage();
   const [users, setUsers] = useState([]);
   const [lines, setLines] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -276,17 +278,17 @@ export default function AdminDashboard() {
         <h1>Admin Dashboard 👨‍💼</h1>
         <div style={{display: 'flex', gap: '10px'}}>
           <button className="btn-primary" onClick={() => setShowProfile(!showProfile)}>👤</button>
-          <button className="btn-logout" onClick={handleLogout}>Logout</button>
+          <button className="btn-logout" onClick={handleLogout}>{t('logout')}</button>
         </div>
       </div>
 
       {showProfile && (
         <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
           <div style={{background: 'white', padding: '30px', borderRadius: '10px', maxWidth: '400px', width: '90%'}}>
-            <h2>Profile</h2>
+            <h2>{t('profile')}</h2>
             <p><strong>Name:</strong> {adminInfo?.name}</p>
             <p><strong>Email:</strong> {adminInfo?.email}</p>
-            <p><strong>Role:</strong> Admin</p>
+            <p><strong>Role:</strong> {t('admin')}</p>
             <button className="btn-primary" onClick={() => setShowProfile(false)}>Close</button>
           </div>
         </div>
@@ -303,8 +305,8 @@ export default function AdminDashboard() {
                 <small>📧 {user.email} | 📞 {user.phone}</small>
               </div>
               <div style={{display: 'flex', gap: '10px'}}>
-                <button className="btn-primary" onClick={() => approveUser(user)}>✅ Approve</button>
-                <button className="btn-delete" onClick={() => declineUser(user)}>❌ Decline</button>
+                <button className="btn-primary" onClick={() => approveUser(user)}>✅ {t('approve')}</button>
+                <button className="btn-delete" onClick={() => declineUser(user)}>❌ {t('decline')}</button>
               </div>
             </div>
           ))}
@@ -354,8 +356,8 @@ export default function AdminDashboard() {
       </div>
 
       <div className="tabs">
-        <button className={activeTab === "users" ? "tab active" : "tab"} onClick={() => setActiveTab("users")}>Users</button>
-        <button className={activeTab === "lines" ? "tab active" : "tab"} onClick={() => setActiveTab("lines")}>Lines</button>
+        <button className={activeTab === "users" ? "tab active" : "tab"} onClick={() => setActiveTab("users")}>{t('users')}</button>
+        <button className={activeTab === "lines" ? "tab active" : "tab"} onClick={() => setActiveTab("lines")}>{t('lines')}</button>
         <button className={activeTab === "bookings" ? "tab active" : "tab"} onClick={() => setActiveTab("bookings")}>Bookings</button>
       </div>
 

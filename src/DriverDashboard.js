@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { db, auth } from "./firebase";
 import { doc, updateDoc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot, addDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
+import { useLanguage } from "./LanguageContext";
 import "./DriverDashboard.css";
 
 export default function DriverDashboard() {
+  const { t } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState("home");
   const [driverInfo, setDriverInfo] = useState(null);
@@ -189,10 +191,10 @@ export default function DriverDashboard() {
           <button onClick={() => setSidebarOpen(false)}>✕</button>
         </div>
         <nav>
-          <button onClick={() => { setActiveView("home"); setSidebarOpen(false); }}>🏠 Home</button>
-          <button onClick={() => { setActiveView("trips"); setSidebarOpen(false); }}>📋 My Trips</button>
-          <button onClick={() => { setActiveView("profile"); setSidebarOpen(false); }}>👤 Profile</button>
-          <button onClick={handleLogout}>🚪 Logout</button>
+          <button onClick={() => { setActiveView("home"); setSidebarOpen(false); }}>🏠 {t('home')}</button>
+          <button onClick={() => { setActiveView("trips"); setSidebarOpen(false); }}>📋 {t('myTrips')}</button>
+          <button onClick={() => { setActiveView("profile"); setSidebarOpen(false); }}>👤 {t('profile')}</button>
+          <button onClick={handleLogout}>🚪 {t('logout')}</button>
         </nav>
       </div>
 
@@ -221,7 +223,7 @@ export default function DriverDashboard() {
         {activeView === "home" && (
           <div className="home-view">
             <div className="welcome-card">
-              <h2>Welcome, {driverInfo?.name}!</h2>
+              <h2>{t('welcome')}, {driverInfo?.name}!</h2>
               <p>Phone: {driverInfo?.phone}</p>
             </div>
             <div className="quick-stats">

@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { auth, db } from "./firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
+import { useLanguage } from "./LanguageContext";
 import "./Profile.css";
 
 export default function Profile({ onBack }) {
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("rider");
