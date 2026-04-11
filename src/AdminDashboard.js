@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [assignedDriver, setAssignedDriver] = useState("");
   const [tripTime, setTripTime] = useState("08:00");
   const [maxSeats, setMaxSeats] = useState(10);
+  const [allowMultipleCars, setAllowMultipleCars] = useState(false);
 
   useEffect(() => {
     const loadAdmin = async () => {
@@ -209,6 +210,7 @@ export default function AdminDashboard() {
         driverId: assignedDriver,
         tripTime,
         maxSeats,
+        allowMultipleCars,
         createdAt: new Date().toISOString(),
         isActive: true,
       });
@@ -232,6 +234,7 @@ export default function AdminDashboard() {
     setAssignedDriver("");
     setTripTime("08:00");
     setMaxSeats(10);
+    setAllowMultipleCars(false);
   };
 
   const deleteLine = async (lineId) => {
@@ -461,6 +464,15 @@ export default function AdminDashboard() {
                 onChange={(e) => setMaxSeats(parseInt(e.target.value))}
                 className="input-field"
               />
+
+              <label style={{display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px'}}>
+                <input
+                  type="checkbox"
+                  checked={allowMultipleCars}
+                  onChange={(e) => setAllowMultipleCars(e.target.checked)}
+                />
+                <strong>Allow multiple cars (auto-assign drivers when full)</strong>
+              </label>
 
               <button className="btn-submit" onClick={editingLine ? updateLine : createLine}>
                 {editingLine ? "Update Line" : "Create Line"}

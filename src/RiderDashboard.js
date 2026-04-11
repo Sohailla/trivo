@@ -102,7 +102,6 @@ export default function RiderDashboard() {
   const handleBooking = async () => {
     if (!selectedLine || !pickup || !destination || !tripDate) return alert("Fill all fields");
 
-    // Check if seats available for selected date
     const maxSeats = selectedLine.maxSeats || 10;
     const bookingsQuery = query(
       collection(db, "bookings"),
@@ -112,8 +111,8 @@ export default function RiderDashboard() {
     const bookingsSnap = await getDocs(bookingsQuery);
     const currentBookings = bookingsSnap.size;
     
-    if (currentBookings >= maxSeats) {
-      return alert("Sorry, this trip is fully booked for this date!");
+    if (currentBookings >= maxSeats && !selectedLine.allowMultipleCars) {
+      return alert("Sorry, this trip is fully booked!");
     }
 
     await addDoc(collection(db, "bookings"), {

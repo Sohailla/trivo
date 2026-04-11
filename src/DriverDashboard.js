@@ -292,7 +292,10 @@ export default function DriverDashboard() {
                 </button>
               ) : (
                 <>
-                  <button className="btn-stop" onClick={() => setIsSharing(false)}>{t('stopTrip')} ❌</button>
+                  <button className="btn-stop" onClick={async () => {
+                    setIsSharing(false);
+                    await updateDoc(doc(db, "tripLines", selectedTrip.id), { isActive: false });
+                  }}>{t('stopTrip')} ❌</button>
                   <div className="location-status">
                     <div className="pulse"></div>
                     <p>{t('sharingLocation')}</p>
