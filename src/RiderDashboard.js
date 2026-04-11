@@ -102,6 +102,34 @@ export default function RiderDashboard() {
   const handleBooking = async () => {
     if (!selectedLine || !pickup || !destination || !tripDate) return alert("Fill all fields");
 
+    // Check if rider already booked this day of week in current week
+    const selectedDate = new Date(tripDate);
+    const selectedDay = selectedDate.getDay(); // 0=Sunday, 1=Monday, etc.
+    
+    const hasBookingThisWeek = myBookings.some(booking => {
+      const bookingDate = new Date(booking.tripDate);
+      const bookingDay = bookingDate.getDay();
+      
+      // Same day of week
+      if (bookingDay === selectedDay) {
+        // Check if in same week (week starts Sunday)
+        const weekStart = new Date(selectedDate);
+        weekStart.setDate(selectedDate.getDate() - selectedDate.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+        
+        return bookingDate >= weekStart && bookingDate <= weekEnd;
+      }
+      return false;
+    });
+
+    if (hasBookingThisWeek) {
+      return alert("You already have a booking for this day this week! Wait until the week ends.");
+    }
+
     const maxSeats = selectedLine.maxSeats || 10;
     const bookingsQuery = query(
       collection(db, "bookings"),
