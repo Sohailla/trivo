@@ -243,11 +243,15 @@ export default function AdminDashboard() {
   const deleteUser = async (userId) => {
     if (window.confirm("Delete this user? This will permanently remove them from Firebase.")) {
       try {
-        // First delete from Firestore
+        // Delete from Firestore
         await deleteDoc(doc(db, "users", userId));
         
-        console.log("User deleted:", userId);
-        alert("User deleted successfully from Firebase!");
+        // Note: To delete from Authentication, user must delete their own account
+        // OR admin must use Firebase Admin SDK (backend only)
+        // For now, just delete from Firestore
+        
+        console.log("User deleted from Firestore:", userId);
+        alert("User deleted from database! (Authentication remains - delete manually from Firebase Console → Authentication)");
       } catch (error) {
         console.error("Delete error:", error);
         alert("Error deleting user: " + error.message);
