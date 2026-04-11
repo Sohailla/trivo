@@ -45,6 +45,11 @@ export default function RiderDashboard() {
       }
     };
     fetchRiderInfo();
+    
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   }, []);
 
   useEffect(() => {
@@ -74,7 +79,18 @@ export default function RiderDashboard() {
       where("read", "==", false)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setNotifications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const newNotifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setNotifications(newNotifs);
+      
+      // Show browser notification for new trip_started notifications
+      newNotifs.forEach(n => {
+        if (n.type === "trip_started" && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('🚗 Your Trip Started!', {
+            body: n.message,
+            icon: '/logo.png'
+          });
+        }
+      });
     });
     return () => unsubscribe();
   }, []);
@@ -200,6 +216,14 @@ export default function RiderDashboard() {
   const handleNotificationClick = async (notif) => {
     if (notif.type === "trip_started") {
       setFullScreenMap(true);
+      
+      // Show browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('🚗 Trip Started!', {
+          body: notif.message,
+          icon: '/logo.png'
+        });
+      }
     }
     await updateDoc(doc(db, "notifications", notif.id), { read: true });
   };
