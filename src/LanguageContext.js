@@ -29,6 +29,16 @@ const translations = {
     startTrip: "Start Trip",
     stopTrip: "Stop Trip",
     sharingLocation: "Sharing Location",
+    activeLines: "Active Lines",
+    tomorrowRiders: "Tomorrow's Riders",
+    ridersBooked: "riders booked",
+    myProfile: "My Profile",
+    name: "Name",
+    editProfile: "Edit Profile",
+    driverDashboard: "Driver Dashboard",
+    time: "Time",
+    date: "Date",
+    notTimeYet: "Not Time Yet",
     
     // Rider
     availableLines: "Available Lines",
@@ -38,6 +48,7 @@ const translations = {
     destination: "Destination",
     confirmBooking: "Confirm Booking",
     cancel: "Cancel",
+    riderDashboard: "Rider Dashboard",
     
     // Admin
     users: "Users",
@@ -77,6 +88,16 @@ const translations = {
     startTrip: "بدء الرحلة",
     stopTrip: "إيقاف الرحلة",
     sharingLocation: "مشاركة الموقع",
+    activeLines: "الخطوط النشطة",
+    tomorrowRiders: "ركاب الغد",
+    ridersBooked: "راكب محجوز",
+    myProfile: "ملفي الشخصي",
+    name: "الاسم",
+    editProfile: "تعديل الملف الشخصي",
+    driverDashboard: "لوحة السائق",
+    time: "الوقت",
+    date: "التاريخ",
+    notTimeYet: "لم يحن الوقت بعد",
     
     // الراكب
     availableLines: "الخطوط المتاحة",
@@ -86,6 +107,7 @@ const translations = {
     destination: "الوجهة",
     confirmBooking: "تأكيد الحجز",
     cancel: "إلغاء",
+    riderDashboard: "لوحة الراكب",
     
     // المدير
     users: "المستخدمين",

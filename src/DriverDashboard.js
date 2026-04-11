@@ -89,6 +89,16 @@ export default function DriverDashboard() {
     return () => unsubscribe();
   }, [driverInfo]);
 
+  const getTomorrowRiders = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    return myTrips
+      .filter(trip => trip.tripDate === tomorrowStr)
+      .reduce((sum, trip) => sum + trip.riders.length, 0);
+  };
+
   const canStartTrip = (trip) => {
     const now = new Date();
     const [hours, minutes] = trip.tripTime.split(':');
@@ -169,23 +179,35 @@ export default function DriverDashboard() {
     if (notif.type === "new_booking") {
       const q = query(collection(db, "lines"), where("driverId", "==", auth.currentUser.uid));
       const snapshot = await getDocs(q);
-      const trips = [];
+      const tripsMap = new Map();
       
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
       for (const lineDoc of snapshot.docs) {
         const lineData = { id: lineDoc.id, ...lineDoc.data() };
         const bookingsQuery = query(
           collection(db, "bookings"),
-          where("lineId", "==", lineDoc.id),
-          where("tripDate", "==", tomorrowStr)
+          where("lineId", "==", lineDoc.id)
         );
         const bookingsSnap = await getDocs(bookingsQuery);
-        const riders = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        trips.push({ ...lineData, riders, tripDate: tomorrowStr });
+        
+        bookingsSnap.docs.forEach(doc => {
+          const booking = doc.data();
+          const dateKey = `${lineDoc.id}_${booking.tripDate}`;
+          
+          if (!tripsMap.has(dateKey)) {
+            tripsMap.set(dateKey, {
+              ...lineData,
+              tripDate: booking.tripDate,
+              riders: []
+            });
+          }
+          
+          tripsMap.get(dateKey).riders.push({ id: doc.id, ...booking });
+        });
       }
+      
+      const trips = Array.from(tripsMap.values()).sort((a, b) => 
+        new Date(a.tripDate) - new Date(b.tripDate)
+      );
       
       setMyTrips(trips);
       setActiveView("trips");
@@ -202,7 +224,7 @@ export default function DriverDashboard() {
     <div className="dashboard-container">
       <div className="sidebar" style={{ left: sidebarOpen ? 0 : '-280px' }}>
         <div className="sidebar-header">
-          <h2>🚗 Driver</h2>
+          <h2>🚗 {t('driver')}</h2>
           <button onClick={() => setSidebarOpen(false)}>✕</button>
         </div>
         <nav>
@@ -216,7 +238,7 @@ export default function DriverDashboard() {
       <div className="main-content">
         <div className="top-bar">
           <button className="menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
-          <h1>Driver Dashboard</h1>
+          <h1>{t('driverDashboard')}</h1>
           {notifications.length > 0 && (
             <button 
               className="notif-badge" 
@@ -250,16 +272,16 @@ export default function DriverDashboard() {
           <div className="home-view">
             <div className="welcome-card">
               <h2>{t('welcome')}, {driverInfo?.name}!</h2>
-              <p>Phone: {driverInfo?.phone}</p>
+              <p>{t('phone')}: {driverInfo?.phone}</p>
             </div>
             <div className="quick-stats">
               <div className="stat-box">
                 <h3>{myTrips.length}</h3>
-                <p>Active Lines</p>
+                <p>{t('activeLines')}</p>
               </div>
               <div className="stat-box">
-                <h3>{myTrips.reduce((sum, t) => sum + t.riders.length, 0)}</h3>
-                <p>Tomorrow's Riders</p>
+                <h3>{getTomorrowRiders()}</h3>
+                <p>{t('tomorrowRiders')}</p>
               </div>
             </div>
           </div>
@@ -269,10 +291,10 @@ export default function DriverDashboard() {
           <div className="trips-view">
             <h2>{t('myTrips')}</h2>
             {myTrips.map(trip => (
-              <div key={trip.id} className="trip-card" onClick={() => setSelectedTrip(trip)}>
+              <div key={trip.id + trip.tripDate} className="trip-card" onClick={() => setSelectedTrip(trip)}>
                 <h3>{trip.name}</h3>
                 <p>🕐 {trip.tripTime}</p>
-                <p>👥 {trip.riders.length} riders booked</p>
+                <p>👥 {trip.riders.length} {t('ridersBooked')}</p>
                 <p>📅 {trip.tripDate}</p>
               </div>
             ))}
@@ -281,12 +303,12 @@ export default function DriverDashboard() {
 
         {activeView === "profile" && (
           <div className="profile-view">
-            <h2>My Profile</h2>
+            <h2>{t('myProfile')}</h2>
             <div className="profile-card">
-              <p><strong>Name:</strong> {driverInfo?.name}</p>
-              <p><strong>Email:</strong> {auth.currentUser?.email}</p>
-              <p><strong>Phone:</strong> {driverInfo?.phone}</p>
-              <button className="btn-primary" onClick={() => window.location.href = '/profile'}>Edit Profile</button>
+              <p><strong>{t('name')}:</strong> {driverInfo?.name}</p>
+              <p><strong>{t('email')}:</strong> {auth.currentUser?.email}</p>
+              <p><strong>{t('phone')}:</strong> {driverInfo?.phone}</p>
+              <button className="btn-primary" onClick={() => window.location.href = '/profile'}>{t('editProfile')}</button>
             </div>
           </div>
         )}
@@ -296,8 +318,8 @@ export default function DriverDashboard() {
             <div className="modal-content">
               <button className="close-btn" onClick={() => setSelectedTrip(null)}>✕</button>
               <h2>{selectedTrip.name}</h2>
-              <p><strong>Time:</strong> {selectedTrip.tripTime}</p>
-              <p><strong>Date:</strong> {selectedTrip.tripDate}</p>
+              <p><strong>{t('time')}:</strong> {selectedTrip.tripTime}</p>
+              <p><strong>{t('date')}:</strong> {selectedTrip.tripDate}</p>
               
               <h3>{t('riders')} ({selectedTrip.riders.length})</h3>
               {selectedTrip.riders.map(rider => (
@@ -314,7 +336,7 @@ export default function DriverDashboard() {
                   onClick={() => startTrip(selectedTrip)}
                   disabled={!canStartTrip(selectedTrip)}
                 >
-                  {canStartTrip(selectedTrip) ? t('startTrip') + " 🚀" : "Not Time Yet ⏰"}
+                  {canStartTrip(selectedTrip) ? t('startTrip') + " 🚀" : t('notTimeYet') + " ⏰"}
                 </button>
               ) : (
                 <>
