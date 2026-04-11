@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { db, auth } from "./firebase";
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, getDoc, query, where, getDocs } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import "./AdminDashboard.css";
 
@@ -12,6 +12,7 @@ export default function AdminDashboard() {
   const [userFilter, setUserFilter] = useState("all");
   const [showProfile, setShowProfile] = useState(false);
   const [adminInfo, setAdminInfo] = useState(null);
+  const [pendingUsers, setPendingUsers] = useState([]);
   
   // Line form
   const [showLineForm, setShowLineForm] = useState(false);
@@ -42,6 +43,7 @@ export default function AdminDashboard() {
         ...doc.data()
       }));
       setUsers(usersList);
+      setPendingUsers(usersList.filter(u => u.status === "pending"));
     });
 
     // Listen to lines
@@ -69,15 +71,49 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const drivers = users.filter(u => u.role === "driver");
+  const drivers = users.filter(u => u.role === "driver" && u.status === "active");
   const riders = users.filter(u => u.role === "rider");
   const admins = users.filter(u => u.role === "admin");
-  const pendingAdmins = users.filter(u => u.role === "admin" && u.status === "pending_admin");
 
-  const approveAdmin = async (userId) => {
-    if (window.confirm("Approve this admin?")) {
-      await updateDoc(doc(db, "users", userId), { status: "active" });
-      alert("Admin approved!");
+  const approveUser = async (user) => {
+    if (window.confirm(`Approve ${user.name}?`)) {
+      // Update user status to active
+      await updateDoc(doc(db, "users", user.id), { status: "active" });
+
+      // Send email notification to user
+      await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service_id: "service_trivo",
+          template_id: "template_approval",
+          user_id: "YOUR_EMAILJS_USER_ID",
+          template_params: {
+            to_email: user.email,
+            to_name: user.name,
+            message: `Your ${user.role} account has been approved! You can now login at: https://trivo.com/login`,
+          }
+        })
+      }).catch(err => console.log("Email send failed:", err));
+
+      // Notify user in-app
+      await addDoc(collection(db, "notifications"), {
+        userId: user.id,
+        type: "account_approved",
+        message: `Your ${user.role} account has been approved! You can now login.`,
+        createdAt: new Date().toISOString(),
+        read: false,
+      });
+
+      alert("User approved! Email notification sent.");
+    }
+  };
+
+  const declineUser = async (user) => {
+    if (window.confirm(`Decline ${user.name}'s request?`)) {
+      // Delete user from Firebase
+      await deleteDoc(doc(db, "users", user.id));
+      alert("User request declined and removed.");
     }
   };
 
@@ -127,8 +163,13 @@ export default function AdminDashboard() {
   };
 
   const deleteBooking = async (bookingId) => {
-    if (window.confirm("Delete this booking?")) {
-      await deleteDoc(doc(db, "bookings", bookingId));
+    if (window.confirm("Delete this booking? This will permanently remove it from Firebase.")) {
+      try {
+        await deleteDoc(doc(db, "bookings", bookingId));
+        alert("Booking deleted successfully from Firebase!");
+      } catch (error) {
+        alert("Error deleting booking: " + error.message);
+      }
     }
   };
 
@@ -173,7 +214,6 @@ export default function AdminDashboard() {
         isActive: true,
       });
 
-      // Update driver with assigned line
       await updateDoc(doc(db, "users", assignedDriver), {
         assignedLine: lineName,
       });
@@ -196,14 +236,24 @@ export default function AdminDashboard() {
   };
 
   const deleteLine = async (lineId) => {
-    if (window.confirm("Delete this line?")) {
-      await deleteDoc(doc(db, "lines", lineId));
+    if (window.confirm("Delete this line? This will permanently remove it from Firebase.")) {
+      try {
+        await deleteDoc(doc(db, "lines", lineId));
+        alert("Line deleted successfully from Firebase!");
+      } catch (error) {
+        alert("Error deleting line: " + error.message);
+      }
     }
   };
 
   const deleteUser = async (userId) => {
-    if (window.confirm("Delete this user?")) {
-      await deleteDoc(doc(db, "users", userId));
+    if (window.confirm("Delete this user? This will permanently remove them from Firebase.")) {
+      try {
+        await deleteDoc(doc(db, "users", userId));
+        alert("User deleted successfully from Firebase!");
+      } catch (error) {
+        alert("Error deleting user: " + error.message);
+      }
     }
   };
 
@@ -224,26 +274,30 @@ export default function AdminDashboard() {
 
       {showProfile && (
         <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-          <div style={{background: 'white', padding: '30px', borderRadius: '10px', maxWidth: '500px', width: '90%'}}>
-            <h2>👨‍💼 Admin Profile</h2>
+          <div style={{background: 'white', padding: '30px', borderRadius: '10px', maxWidth: '400px', width: '90%'}}>
+            <h2>Profile</h2>
             <p><strong>Name:</strong> {adminInfo?.name}</p>
-            <p><strong>Email:</strong> {auth.currentUser?.email}</p>
-            <p><strong>Phone:</strong> {adminInfo?.phone}</p>
+            <p><strong>Email:</strong> {adminInfo?.email}</p>
             <p><strong>Role:</strong> Admin</p>
-            <button className="btn-primary" onClick={() => setShowProfile(false)} style={{marginTop: '20px'}}>Close</button>
+            <button className="btn-primary" onClick={() => setShowProfile(false)}>Close</button>
           </div>
         </div>
       )}
 
-      {pendingAdmins.length > 0 && (
+      {pendingUsers.length > 0 && (
         <div style={{background: '#fff3cd', padding: '15px', margin: '20px', borderRadius: '8px', border: '1px solid #ffc107'}}>
-          <h3>⚠️ Pending Admin Requests ({pendingAdmins.length})</h3>
-          {pendingAdmins.map(admin => (
-            <div key={admin.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: 'white', margin: '10px 0', borderRadius: '5px'}}>
+          <h3>⚠️ Pending User Requests ({pendingUsers.length})</h3>
+          {pendingUsers.map(user => (
+            <div key={user.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: 'white', margin: '10px 0', borderRadius: '5px'}}>
               <div>
-                <strong>{admin.name}</strong> - {admin.email}
+                <strong>{user.name}</strong> ({user.role})
+                <br />
+                <small>📧 {user.email} | 📞 {user.phone}</small>
               </div>
-              <button className="btn-primary" onClick={() => approveAdmin(admin.id)}>Approve</button>
+              <div style={{display: 'flex', gap: '10px'}}>
+                <button className="btn-primary" onClick={() => approveUser(user)}>✅ Approve</button>
+                <button className="btn-delete" onClick={() => declineUser(user)}>❌ Decline</button>
+              </div>
             </div>
           ))}
         </div>
@@ -291,20 +345,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {pendingAdmins.length > 0 && (
-        <div className="section" style={{background: '#fff3cd', padding: '15px', borderRadius: '8px', marginBottom: '20px'}}>
-          <h3>⚠️ Pending Admin Approvals ({pendingAdmins.length})</h3>
-          {pendingAdmins.map(admin => (
-            <div key={admin.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: 'white', borderRadius: '5px', marginTop: '10px'}}>
-              <div>
-                <strong>{admin.name}</strong> - {admin.email}
-              </div>
-              <button className="btn-primary" onClick={() => approveAdmin(admin.id)}>✅ Approve</button>
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="tabs">
         <button className={activeTab === "users" ? "tab active" : "tab"} onClick={() => setActiveTab("users")}>Users</button>
         <button className={activeTab === "lines" ? "tab active" : "tab"} onClick={() => setActiveTab("lines")}>Lines</button>
@@ -322,6 +362,7 @@ export default function AdminDashboard() {
           <div className="users-list">
             {users
               .filter(u => userFilter === "all" || u.role === userFilter)
+              .filter(u => u.status === "active")
               .map(user => (
               <div key={user.id} className="user-item">
                 <div>

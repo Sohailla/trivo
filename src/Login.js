@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import DriverDashboard from "./DriverDashboard";
 import RiderDashboard from "./RiderDashboard";
 import AdminDashboard from "./AdminDashboard";
@@ -32,10 +32,7 @@ export default function Login() {
     const db = getFirestore();
 
     try {
-      // Check if email contains @, if not add @trivo.com
-      const loginEmail = email.includes("@") ? email : `${email}@trivo.com`;
-      
-      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
       const docRef = doc(db, "users", user.uid);
@@ -43,8 +40,8 @@ export default function Login() {
 
       if (docSnap.exists()) {
         const data = docSnap.data();
-        if (data.status === "pending" || data.status === "pending_admin") {
-          setError("Account pending approval. Contact admin.");
+        if (data.status === "pending") {
+          setError("Account pending approval. Contact admin at Admin1973@trivo.com");
           await auth.signOut();
           return;
         }
@@ -60,8 +57,14 @@ export default function Login() {
   };
 
   const signup = async () => {
-    if (!password || !name || !phone) {
+    if (!email || !password || !name || !phone) {
       setError("Please fill all fields");
+      return;
+    }
+
+    // Validate email format
+    if (!email.includes("@") || !email.includes(".")) {
+      setError("Please enter a valid email address");
       return;
     }
 
@@ -72,46 +75,37 @@ export default function Login() {
     const db = getFirestore();
 
     try {
-      // Auto-generate email from name
-      const autoEmail = `${name.toLowerCase().replace(/\s+/g, '')}@trivo.com`;
-      
-      const userCredential = await createUserWithEmailAndPassword(auth, autoEmail, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const status = (selectedRole === "admin" || selectedRole === "driver") ? "pending" : "active";
-
+      // All users need admin approval
       await setDoc(doc(db, "users", user.uid), {
         name,
         phone,
         role: selectedRole,
-        email: autoEmail,
+        email: email,
         createdAt: new Date().toISOString(),
-        status,
+        status: "pending",
       });
 
-      // Notify all admins if pending approval
-      if (status === "pending") {
-        const { collection, query, where, getDocs } = await import("firebase/firestore");
-        const adminsQuery = query(collection(db, "users"), where("role", "==", "admin"));
-        const adminsSnap = await getDocs(adminsQuery);
-        
-        for (const adminDoc of adminsSnap.docs) {
-          await setDoc(doc(db, "notifications", `${adminDoc.id}_${Date.now()}`), {
-            userId: adminDoc.id,
-            type: "approval_request",
-            message: `${name} requested ${selectedRole} account approval`,
-            targetUserId: user.uid,
-            createdAt: new Date().toISOString(),
-            read: false,
-          });
-        }
+      // Notify admin (Admin1973@trivo.com)
+      const adminQuery = query(collection(db, "users"), where("email", "==", "Admin1973@trivo.com"));
+      const adminSnap = await getDocs(adminQuery);
+      
+      if (!adminSnap.empty) {
+        const adminDoc = adminSnap.docs[0];
+        await setDoc(doc(db, "notifications", `${adminDoc.id}_${Date.now()}`), {
+          userId: adminDoc.id,
+          type: "approval_request",
+          message: `${name} (${email}) requested ${selectedRole} account approval`,
+          targetUserId: user.uid,
+          targetUserEmail: email,
+          createdAt: new Date().toISOString(),
+          read: false,
+        });
       }
 
-      alert(
-        status === "pending"
-          ? "Registration submitted! Wait for admin approval."
-          : "Registration successful! Login: " + name
-      );
+      alert("Registration submitted! Wait for admin approval at Admin1973@trivo.com");
       setIsSignup(false);
     } catch (error) {
       setError(error.message);
@@ -168,6 +162,17 @@ export default function Login() {
               </div>
 
               <div className="input-group">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  placeholder="your.email@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+
+              <div className="input-group">
                 <label>Phone Number</label>
                 <input
                   type="tel"
@@ -194,10 +199,10 @@ export default function Login() {
           )}
 
           <div className="input-group">
-            <label>{isSignup ? "Username" : "Username or Email"}</label>
+            <label>Email</label>
             <input
-              type="text"
-              placeholder={isSignup ? "Your username" : "username or email"}
+              type="email"
+              placeholder="your.email@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input-field"
