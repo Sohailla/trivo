@@ -4,9 +4,12 @@ import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } 
 import DriverDashboard from "./DriverDashboard";
 import RiderDashboard from "./RiderDashboard";
 import AdminDashboard from "./AdminDashboard";
+import { useLanguage } from "./LanguageContext";
 import "./Login.css";
 
 export default function Login() {
+  // eslint-disable-next-line
+  const { t, toggleLanguage, language } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(null);
@@ -14,7 +17,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   
-  // Signup fields
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [selectedRole, setSelectedRole] = useState("rider");
@@ -47,7 +49,7 @@ export default function Login() {
         }
         setRole(data.role);
       } else {
-        setError("No profile found! Please contact support.");
+        setError("No profile found!");
       }
     } catch (error) {
       setError(error.message);
@@ -62,7 +64,6 @@ export default function Login() {
       return;
     }
 
-    // Validate email format
     if (!email.includes("@") || !email.includes(".")) {
       setError("Please enter a valid email address");
       return;
@@ -78,7 +79,6 @@ export default function Login() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // All users need admin approval
       await setDoc(doc(db, "users", user.uid), {
         name,
         phone,
@@ -88,7 +88,6 @@ export default function Login() {
         status: "pending",
       });
 
-      // Notify admin (Admin1973@trivo.com)
       const adminQuery = query(collection(db, "users"), where("email", "==", "Admin1973@trivo.com"));
       const adminSnap = await getDocs(adminQuery);
       
@@ -105,7 +104,7 @@ export default function Login() {
         });
       }
 
-      alert("Registration submitted! Wait for admin approval at Admin1973@trivo.com");
+      alert("Registration submitted! Wait for admin approval");
       setIsSignup(false);
     } catch (error) {
       setError(error.message);
@@ -129,21 +128,15 @@ export default function Login() {
         <div className="tabs">
           <button
             className={!isSignup ? "tab active" : "tab"}
-            onClick={() => {
-              setIsSignup(false);
-              setError("");
-            }}
+            onClick={() => { setIsSignup(false); setError(""); }}
           >
-            Login
+            {t('login')}
           </button>
           <button
             className={isSignup ? "tab active" : "tab"}
-            onClick={() => {
-              setIsSignup(true);
-              setError("");
-            }}
+            onClick={() => { setIsSignup(true); setError(""); }}
           >
-            Sign Up
+            {t('signup')}
           </button>
         </div>
 
@@ -151,10 +144,10 @@ export default function Login() {
           {isSignup && (
             <>
               <div className="input-group">
-                <label>Full Name</label>
+                <label>{t('fullName')}</label>
                 <input
                   type="text"
-                  placeholder="Enter your name"
+                  placeholder={t('fullName')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="input-field"
@@ -162,7 +155,7 @@ export default function Login() {
               </div>
 
               <div className="input-group">
-                <label>Email Address</label>
+                <label>{t('email')}</label>
                 <input
                   type="email"
                   placeholder="your.email@gmail.com"
@@ -173,7 +166,7 @@ export default function Login() {
               </div>
 
               <div className="input-group">
-                <label>Phone Number</label>
+                <label>{t('phone')}</label>
                 <input
                   type="tel"
                   placeholder="+20 XXX XXX XXXX"
@@ -184,22 +177,22 @@ export default function Login() {
               </div>
 
               <div className="input-group">
-                <label>I am a</label>
+                <label>{t('iAm')}</label>
                 <select
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
                   className="input-field"
                 >
-                  <option value="rider">🧍 Rider</option>
-                  <option value="driver">🚗 Driver</option>
-                  <option value="admin">👨‍💼 Admin</option>
+                  <option value="rider">🧍 {t('rider')}</option>
+                  <option value="driver">🚗 {t('driver')}</option>
+                  <option value="admin">👨‍💼 {t('admin')}</option>
                 </select>
               </div>
             </>
           )}
 
           <div className="input-group">
-            <label>Email</label>
+            <label>{t('email')}</label>
             <input
               type="email"
               placeholder="your.email@gmail.com"
@@ -210,7 +203,7 @@ export default function Login() {
           </div>
 
           <div className="input-group">
-            <label>Password</label>
+            <label>{t('password')}</label>
             <input
               type="password"
               placeholder="••••••••"
@@ -227,21 +220,18 @@ export default function Login() {
             onClick={isSignup ? signup : login}
             disabled={loading}
           >
-            {loading ? "Please wait..." : isSignup ? "Create Account" : "Login"}
+            {loading ? "..." : isSignup ? t('createAccount') : t('login')}
           </button>
         </div>
 
         <div className="footer">
           <p>
-            {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+            {isSignup ? t('alreadyHaveAccount') : t('dontHaveAccount')}{" "}
             <span
               className="link"
-              onClick={() => {
-                setIsSignup(!isSignup);
-                setError("");
-              }}
+              onClick={() => { setIsSignup(!isSignup); setError(""); }}
             >
-              {isSignup ? "Login" : "Sign up"}
+              {isSignup ? t('login') : t('signup')}
             </span>
           </p>
         </div>
