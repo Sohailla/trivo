@@ -32,7 +32,10 @@ export default function Login() {
     const db = getFirestore();
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Check if email contains @, if not add @trivo.com
+      const loginEmail = email.includes("@") ? email : `${email}@trivo.com`;
+      
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
       const user = userCredential.user;
 
       const docRef = doc(db, "users", user.uid);
@@ -40,8 +43,8 @@ export default function Login() {
 
       if (docSnap.exists()) {
         const data = docSnap.data();
-        if (data.status === "pending_admin") {
-          setError("Admin account pending approval. Contact existing admin.");
+        if (data.status === "pending" || data.status === "pending_admin") {
+          setError("Account pending approval. Contact admin.");
           await auth.signOut();
           return;
         }
@@ -57,7 +60,7 @@ export default function Login() {
   };
 
   const signup = async () => {
-    if (!email || !password || !name || !phone) {
+    if (!password || !name || !phone) {
       setError("Please fill all fields");
       return;
     }
@@ -69,32 +72,27 @@ export default function Login() {
     const db = getFirestore();
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Auto-generate email from name
+      const autoEmail = `${name.toLowerCase().replace(/\s+/g, '')}@trivo.com`;
+      
+      const userCredential = await createUserWithEmailAndPassword(auth, autoEmail, password);
       const user = userCredential.user;
+
+      const status = (selectedRole === "admin" || selectedRole === "driver") ? "pending" : "active";
 
       await setDoc(doc(db, "users", user.uid), {
         name,
         phone,
         role: selectedRole,
-        email,
+        email: autoEmail,
         createdAt: new Date().toISOString(),
-        status: selectedRole === "admin" ? "pending_admin" : "active",
-      });
-
-      // Notify admin (in real app, use Cloud Functions)
-      await setDoc(doc(db, "notifications", user.uid), {
-        type: "new_user",
-        userName: name,
-        userRole: selectedRole,
-        userEmail: email,
-        createdAt: new Date().toISOString(),
-        read: false,
+        status,
       });
 
       alert(
-        selectedRole === "admin"
-          ? "Admin registration submitted! Wait for approval from existing admin."
-          : "Registration successful!"
+        status === "pending"
+          ? "Registration submitted! Wait for admin approval."
+          : "Registration successful! Login: " + name
       );
       setIsSignup(false);
     } catch (error) {
@@ -178,10 +176,10 @@ export default function Login() {
           )}
 
           <div className="input-group">
-            <label>Email</label>
+            <label>{isSignup ? "Username" : "Username or Email"}</label>
             <input
-              type="email"
-              placeholder="your@email.com"
+              type="text"
+              placeholder={isSignup ? "Your username" : "username or email"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input-field"
