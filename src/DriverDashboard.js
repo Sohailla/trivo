@@ -15,6 +15,7 @@ export default function DriverDashboard() {
   const [isSharing, setIsSharing] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     const fetchDriverInfo = async () => {
@@ -150,7 +151,6 @@ export default function DriverDashboard() {
 
   const handleNotificationClick = async (notif) => {
     if (notif.type === "new_booking") {
-      // Refresh trips first
       const q = query(collection(db, "lines"), where("driverId", "==", auth.currentUser.uid));
       const snapshot = await getDocs(q);
       const trips = [];
@@ -174,7 +174,6 @@ export default function DriverDashboard() {
       setMyTrips(trips);
       setActiveView("trips");
       
-      // Find and set trip after updating state
       setTimeout(() => {
         const trip = trips.find(t => t.id === notif.tripId);
         if (trip) setSelectedTrip(trip);
@@ -202,16 +201,27 @@ export default function DriverDashboard() {
         <div className="top-bar">
           <button className="menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
           <h1>Driver Dashboard</h1>
-          {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
+          {notifications.length > 0 && (
+            <button 
+              className="notif-badge" 
+              onClick={() => setShowNotifications(!showNotifications)}
+              style={{cursor: 'pointer', border: 'none'}}
+            >
+              🔔 {notifications.length}
+            </button>
+          )}
         </div>
 
-        {notifications.length > 0 && (
+        {showNotifications && notifications.length > 0 && (
           <div className="notifications">
             {notifications.map(n => (
               <div 
                 key={n.id} 
                 className="notif-item"
-                onClick={() => handleNotificationClick(n)}
+                onClick={() => {
+                  handleNotificationClick(n);
+                  setShowNotifications(false);
+                }}
                 style={{cursor: 'pointer'}}
               >
                 🔔 {n.message}
@@ -246,7 +256,7 @@ export default function DriverDashboard() {
               <div key={trip.id} className="trip-card" onClick={() => setSelectedTrip(trip)}>
                 <h3>{trip.name}</h3>
                 <p>🕐 {trip.tripTime}</p>
-                <p>👥 {trip.riders.length} riders</p>
+                <p>👥 {trip.riders.length} riders booked</p>
                 <p>📅 {trip.tripDate}</p>
               </div>
             ))}
