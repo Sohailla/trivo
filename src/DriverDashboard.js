@@ -275,11 +275,17 @@ export default function DriverDashboard() {
               <p>{t('phone')}: {driverInfo?.phone}</p>
             </div>
             <div className="quick-stats">
-              <div className="stat-box">
+              <div className="stat-box" onClick={() => setActiveView("trips")} style={{cursor: 'pointer'}}>
                 <h3>{new Set(myTrips.map(t => t.id)).size}</h3>
                 <p>{t('activeLines')}</p>
               </div>
-              <div className="stat-box">
+              <div className="stat-box" onClick={() => {
+                setActiveView("trips");
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = tomorrow.toISOString().split('T')[0];
+                setMyTrips(prev => prev.filter(t => t.tripDate === tomorrowStr));
+              }} style={{cursor: 'pointer'}}>
                 <h3>{getTomorrowRiders()}</h3>
                 <p>{t('tomorrowRiders')}</p>
               </div>
