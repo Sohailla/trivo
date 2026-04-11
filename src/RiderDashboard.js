@@ -102,32 +102,25 @@ export default function RiderDashboard() {
   const handleBooking = async () => {
     if (!selectedLine || !pickup || !destination || !tripDate) return alert("Fill all fields");
 
-    // Check if rider already booked this day of week in current week
-    const selectedDate = new Date(tripDate);
-    const selectedDay = selectedDate.getDay(); // 0=Sunday, 1=Monday, etc.
+    // Week-by-week booking: can only book current week until Thursday ends
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    const hasBookingThisWeek = myBookings.some(booking => {
-      const bookingDate = new Date(booking.tripDate);
-      const bookingDay = bookingDate.getDay();
-      
-      // Same day of week
-      if (bookingDay === selectedDay) {
-        // Check if in same week (week starts Sunday)
-        const weekStart = new Date(selectedDate);
-        weekStart.setDate(selectedDate.getDate() - selectedDate.getDay());
-        weekStart.setHours(0, 0, 0, 0);
-        
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999);
-        
-        return bookingDate >= weekStart && bookingDate <= weekEnd;
-      }
-      return false;
-    });
-
-    if (hasBookingThisWeek) {
-      return alert("You already have a booking for this day this week! Wait until the week ends.");
+    const selectedDate = new Date(tripDate);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    // Get current week end (Thursday)
+    const currentWeekEnd = new Date(today);
+    const daysUntilThursday = (4 - today.getDay() + 7) % 7;
+    currentWeekEnd.setDate(today.getDate() + daysUntilThursday);
+    
+    // Get next week start (Friday after current week's Thursday)
+    const nextWeekStart = new Date(currentWeekEnd);
+    nextWeekStart.setDate(currentWeekEnd.getDate() + 1);
+    
+    // If selected date is in next week and today is not Friday yet
+    if (selectedDate > currentWeekEnd && today.getDay() !== 5) {
+      return alert("You can only book next week starting Friday!");
     }
 
     const maxSeats = selectedLine.maxSeats || 10;
